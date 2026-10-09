@@ -54,6 +54,7 @@
   function loadImages() {
     const names = new Set([M.background, M.portrait, M.monster.image]);
     for (const a of Object.values(M.player.anims)) names.add(a.image);
+    for (const v of Object.values(M.vfx)) names.add(v);
     return Promise.all([...names].map((src) => new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => { images[src] = img; res(); };
@@ -71,6 +72,8 @@
     ArrowUp: "jump", KeyW: "jump", Space: "jump", KeyK: "jump",
     KeyJ: "attack", KeyX: "attack", Enter: "attack",
     KeyR: "restart",
+    KeyU: "skill1", KeyI: "skill2", KeyO: "skill3",
+    Digit1: "skill1", Digit2: "skill2", Digit3: "skill3",
   };
   addEventListener("keydown", (e) => {
     const a = KEYMAP[e.code];
@@ -209,6 +212,7 @@
       airUsed: false,       // one air combo per jump
       queued: false, hitDone: false, sinceAttack: 99,
       hurtT: 0, invulnT: 0,
+      skill: null,          // skill being cast: { def, t, hitIdx, ... }
     };
   }
 
@@ -217,6 +221,7 @@
       x, y: GROUND_Y, vx: 0, facing: -1,
       hp: M.monster.hp, maxHp: M.monster.hp,
       state: "walk", t: 0, cd: 1.2, flash: 0, hitStun: 0, alpha: 1,
+      downT: 0, downMax: 0, stunT: 0,  // knocked down / dazed timers
       bob: Math.random() * 6,
     };
   }
@@ -226,7 +231,9 @@
       player: newPlayer(),
       monster: newMonster(470),
       camX: 0,
-      popups: [], sparks: [], waves: [],
+      popups: [], sparks: [], waves: [], vfx: [], shots: [],
+      banner: null, flashRed: 0, dim: 0, time: 0,
+      cooldowns: [0, 0, 0],
       shake: 0, hitStop: 0,
       comboCount: 0, comboTimer: 0,
       kills: 0, respawnT: 0, over: false, lastCombo: -1,
@@ -289,6 +296,13 @@
 
     if (p.hurtT > 0) {
       p.hurtT -= dt;
+    }
+
+    // skill input, then let a running skill drive the player
+    for (let i = 0; i < 3; i++) if (pressed.has("skill" + (i + 1))) startSkill(i);
+    if (updateSkill(p, dt)) {
+      p.x = clamp(p.x, 40, M.worldWidth - 40);
+      return;
     }
 
     const attacking = p.combo >= 0;
@@ -463,6 +477,12 @@
     m.vx *= Math.pow(0.0008, dt);
     m.x = clamp(m.x, 40, M.worldWidth - 40);
 
+    if (m.downT > 0) {
+      m.downT -= dt;
+      if (m.downT <= 0) { m.state = "walk"; m.cd = 0.9; }
+      return;
+    }
+    if (m.stunT > 0) { m.stunT -= dt; m.state = "walk"; return; }
     if (m.hitStun > 0) { m.hitStun -= dt; return; }
 
     const dist = p.x - m.x;
@@ -498,8 +518,543 @@
     }
   }
 
+  // ---------- skills ----------
+  // Each skill plays a 3-frame clip. `frames` are the clip times (fraction of `dur`) where
+  // frames 1, 2 and 3 start; `hits` land at fractions of `dur`. Ultimates (ult) get a
+  // screen dim + longer cooldown. Effects (vfx) are PixelLab sprites tweened in code.
+  const SKILLS = {
+    wing: {
+      name: "หักปีกปักษา", desc: "ฟันซ้าย-ขวา 2 ครั้ง วิญญาณนกโฉบใส่", cd: 5, dur: 0.5,
+      frames: [0, 0.16, 0.5], icon: "bird",
+      hits: [
+        { at: 0.2, dmg: [16, 22], reach: 155, power: 1, vfx: "bird" },
+        { at: 0.55, dmg: [18, 25], reach: 165, power: 1, vfx: "bird2" },
+      ],
+    },
+    naga: {
+      name: "นาคาพ่นไฟ", desc: "แทงระยะไกล พญานาคพ่นไฟ", cd: 7, dur: 0.62,
+      frames: [0, 0.14, 0.28], icon: "naga",
+      hits: [{ at: 0.3, dmg: [30, 40], reach: 280, power: 1, vfx: "naga", burn: true }],
+    },
+    chakra: {
+      name: "คมจักรนารายณ์", desc: "ขว้างคมแฝกหมุนเป็นจักร ไปแล้ววนกลับ", cd: 6, dur: 0.3,
+      frames: [0, 0.35, 0.7], icon: "chakra", throwAt: 0.7, holdUntilCatch: true,
+      shot: { dmg: [26, 34], range: 300, speed: 520 },
+    },
+    tiger: {
+      name: "พยัคฆ์ล้มสิงขร", desc: "แทงแล้วฟาดเสยขึ้น ศัตรูล้ม", cd: 8, dur: 0.62,
+      frames: [0, 0.3, 0.52], icon: "tiger",
+      hits: [
+        { at: 0.12, dmg: [14, 18], reach: 145, power: 1, vfx: "tiger" },
+        { at: 0.56, dmg: [22, 30], reach: 135, power: 2, knockdown: 1.4, vfx: "tigerUp" },
+      ],
+    },
+    quake: {
+      name: "สะท้านบรรพต", desc: "กระแทกระยะประชิด ศัตรูมึนงง", cd: 7, dur: 0.48,
+      frames: [0, 0.2, 0.38], icon: "rocks",
+      hits: [{ at: 0.4, dmg: [18, 24], reach: 85, power: 1, stun: 2.2, vfx: "rocks" }],
+    },
+    yama: {
+      name: "พญายมข่มธรณี", desc: "ไม้ตาย กระโดดฟาดพื้น ระเบิดแดง ศัตรูล้ม", cd: 16, ult: true,
+      icon: "yama", leap: true,
+      hit: { dmg: [60, 80], reach: 160, power: 2, knockdown: 1.8, vfx: "yama" },
+    },
+    storm: {
+      name: "อัคคีสาดแสง", desc: "ไม้ตาย หมุนตัวฟัน 3 ครั้ง พายุลมขาวฟ้า", cd: 15, ult: true, dur: 0.95,
+      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 120,
+      hits: [
+        { at: 0.25, dmg: [16, 22], reach: 120, both: true, power: 1, vfx: "sparks" },
+        { at: 0.52, dmg: [16, 22], reach: 120, both: true, power: 1, vfx: "sparks" },
+        { at: 0.8, dmg: [22, 30], reach: 125, both: true, power: 2, vfx: "sparks" },
+      ],
+    },
+  };
+  const SKILL_ORDER = ["wing", "naga", "chakra", "tiger", "quake", "yama", "storm"];
+  const LOADOUT_KEY = "komfaek.skills";
+  let loadout = ["wing", "naga", "yama"];
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) || "null");
+    if (Array.isArray(saved) && saved.length === 3 && saved.every((id) => SKILLS[id])) loadout = saved;
+  } catch (_) { /* storage unavailable */ }
+
+  // shared damage path for combo hits and skills
+  function hitMonster(o) {
+    const m = state.monster;
+    if (!m || m.state === "dead") return false;
+    const [lo, hi] = o.dmg;
+    const crit = Math.random() < (o.crit ?? 0.2);
+    const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1));
+    m.hp = Math.max(0, m.hp - dmg);
+    m.flash = 0.75;
+    m.hitStun = Math.max(m.hitStun, o.power === 2 ? 0.5 : 0.3);
+    m.vx = o.dir * (o.kb ?? 60) * (crit ? 1.4 : 1) * (o.power === 2 ? 3 : 1.5);
+    if (m.state === "windup") { m.state = "walk"; m.cd = 1.1; }
+    if (o.knockdown && m.downT <= 0) { m.downT = o.knockdown; m.downMax = o.knockdown; m.stunT = 0; }
+    if (o.stun) m.stunT = o.stun;
+
+    state.comboCount += 1;
+    state.comboTimer = 1.6;
+    state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
+    state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
+    const hy = m.y - M.monster.hitHeight;
+    addPopup(m.x + rand(-10, 10), hy, dmg, crit);
+    addSparks(m.x - o.dir * 18, hy + 30, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
+    if (o.power) addSparks(m.x - o.dir * 18, hy + 30, 8, o.sparkColor2 || "#ff6a2b");
+    if (m.hp <= 0) {
+      m.state = "dead";
+      m.t = 0;
+      m.downT = 0;
+      m.stunT = 0;
+      state.kills += 1;
+      state.respawnT = 2.2;
+    }
+    return true;
+  }
+
+  function inReach(p, reach, both) {
+    const m = state.monster;
+    if (!m || m.state === "dead") return false;
+    const dx = (m.x - p.x) * p.facing;
+    if (both) return Math.abs(m.x - p.x) <= reach;
+    return dx >= -20 && dx <= reach;
+  }
+
+  function addVfx(key, x, y, opts = {}) {
+    state.vfx.push(Object.assign({
+      key, x, y, t: 0, life: 0.5, vx: 0, vy: 0, s0: 1, s1: 1, rot: 0, spin: 0,
+      flip: 1, alpha: 1, glow: true, flicker: false, anchor: "center",
+    }, opts));
+  }
+
+  function showBanner(def) {
+    state.banner = { text: def.name, ult: !!def.ult, t: 0, life: def.ult ? 1.5 : 1.1 };
+    if (def.ult) state.dim = 0.55;
+  }
+
+  function startSkill(slot) {
+    const p = state.player;
+    const id = loadout[slot];
+    const def = SKILLS[id];
+    if (!def || state.cooldowns[slot] > 0 || p.skill || p.hp <= 0 || state.over) return;
+    if (!def.leap && !p.onGround) return;
+    p.combo = -1;
+    p.air = false;
+    p.queued = false;
+    p.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false };
+    p.anim = "sk_" + id;
+    p.t = 0;
+    p.vx = 0;
+    state.cooldowns[slot] = def.cd;
+    showBanner(def);
+    if (def.ult) p.invulnT = Math.max(p.invulnT, 1.2);
+    if (def.leap) {
+      p.vy = -720;
+      p.onGround = false;
+      p.vx = p.facing * 90;
+    }
+  }
+
+  function skillFrame(sk) {
+    const def = sk.def;
+    if (def.leap) return sk.phase;              // 0 rising, 1 falling strike, 2 landed
+    const k = sk.t / def.dur;
+    if (def.loopFrames) return Math.floor(k * 9) % 3;   // spin: cycle the 3 frames fast
+    let f = 0;
+    for (let i = 0; i < 3; i++) if (k >= def.frames[i]) f = i;
+    return f;
+  }
+
+  // returns true while the skill owns the player
+  function updateSkill(p, dt) {
+    const sk = p.skill;
+    if (!sk) return false;
+    const def = sk.def;
+    sk.t += dt;
+
+    if (def.leap) {
+      // rise, hang briefly, then dive into the ground
+      if (!sk.landed) {
+        if (p.vy > -80 && sk.phase === 0) sk.phase = 1;
+        if (sk.phase === 1) p.vy = Math.max(p.vy, 1100);
+        p.vy += GRAVITY * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        if (p.y >= GROUND_Y) {
+          p.y = GROUND_Y;
+          p.vy = 0;
+          p.onGround = true;
+          sk.landed = true;
+          sk.phase = 2;
+          sk.t = 0;
+          const h = def.hit;
+          const fx = p.x + p.facing * 34;
+          addVfx("yama", fx, GROUND_Y, { life: 0.9, s0: 0.5, s1: 1.7, anchor: "bottom", flicker: true });
+          addShockwave(fx, GROUND_Y);
+          addShockwave(fx, GROUND_Y);
+          state.flashRed = 0.6;
+          state.shake = 14;
+          for (let i = 0; i < 3; i++) addSparks(fx + rand(-40, 40), GROUND_Y - rand(10, 60), 14, i % 2 ? "#ff3b2f" : "#ffb02e");
+          if (inReach(p, h.reach, true)) {
+            const m = state.monster;
+            hitMonster({ ...h, dir: Math.sign(m.x - p.x) || p.facing, crit: 0.4, kb: 90, sparkColor: "#ff3b2f", sparkColor2: "#ffd23f" });
+          }
+        }
+      } else if (sk.t > 0.38) {
+        p.skill = null;
+        p.anim = "idle";
+        p.t = 0;
+      }
+      return true;
+    }
+
+    // ground skills are rooted, except the storm which carries Kan forward
+    p.vx = def.drift ? p.facing * def.drift : 0;
+    p.x += p.vx * dt;
+    const k = sk.t / def.dur;
+
+    if (def.hits) {
+      while (sk.hitIdx < def.hits.length && k >= def.hits[sk.hitIdx].at) {
+        const h = def.hits[sk.hitIdx++];
+        spawnHitVfx(p, h);
+        if (inReach(p, h.reach, h.both)) {
+          const m = state.monster;
+          hitMonster({
+            ...h, dir: h.both ? Math.sign(m.x - p.x) || p.facing : p.facing, crit: 0.22, kb: 50,
+            sparkColor: h.vfx === "sparks" ? "#e8fbff" : h.burn ? "#ff7a1a" : "#ffd23f",
+            sparkColor2: h.vfx === "sparks" ? "#ff9a3c" : "#ff6a2b",
+          });
+        }
+      }
+    }
+
+    if (def.shot && !sk.thrown && k >= def.throwAt) {
+      sk.thrown = true;
+      state.shots.push({
+        x: p.x + p.facing * 30, y: p.y - 62, dir: p.facing, dist: 0, out: true,
+        hit: false, rot: 0, def: def.shot,
+      });
+    }
+
+    if (def.storm || def.loopFrames) {
+      // the storm surrounds Kan for the whole spin
+      if (!sk.stormed) {
+        sk.stormed = true;
+        addVfx("storm", p.x, GROUND_Y, { life: def.dur + 0.15, s0: 0.8, s1: 1.25, anchor: "bottom", flicker: true, follow: true });
+      }
+    }
+
+    const holding = def.holdUntilCatch && state.shots.length > 0;
+    if (k >= 1 && !holding) {
+      p.skill = null;
+      p.anim = "idle";
+      p.t = 0;
+    }
+    return true;
+  }
+
+  function spawnHitVfx(p, h) {
+    const f = p.facing;
+    const cy = p.y - 60;
+    switch (h.vfx) {
+      case "bird":
+        addVfx("bird", p.x + f * 20, cy - 6, { vx: f * 520, life: 0.5, s0: 0.7, s1: 1.1, flip: f });
+        break;
+      case "bird2":
+        addVfx("bird", p.x + f * 10, cy - 26, { vx: f * 600, vy: 40, life: 0.5, s0: 0.8, s1: 1.25, flip: f, rot: 0.15 });
+        break;
+      case "naga":
+        addVfx("naga", p.x + f * 28, cy + 2, { life: 0.55, s0: 0.35, s1: 1.75, flip: f, anchor: "left", stretch: true, flicker: true });
+        break;
+      case "tiger":
+        addVfx("tiger", p.x + f * 30, cy, { vx: f * 380, life: 0.45, s0: 0.7, s1: 1.1, flip: f });
+        break;
+      case "tigerUp":
+        addVfx("tiger", p.x + f * 30, cy + 10, { vx: f * 160, vy: -360, life: 0.5, s0: 0.8, s1: 1.2, flip: f, rot: -0.7 * f });
+        break;
+      case "rocks":
+        addVfx("rocks", p.x + f * 46, GROUND_Y + 4, { life: 0.55, s0: 0.5, s1: 1.15, flip: f, anchor: "bottom" });
+        addShockwave(p.x + f * 46, GROUND_Y);
+        break;
+      case "sparks":
+        addSparks(p.x + rand(-50, 50), cy + rand(-10, 20), 14, "#e8fbff");
+        addSparks(p.x + rand(-50, 50), cy + rand(-10, 20), 8, "#ff9a3c");
+        break;
+    }
+  }
+
+  function updateSkillWorld(dt) {
+    state.time += dt;
+    for (let i = 0; i < 3; i++) state.cooldowns[i] = Math.max(0, state.cooldowns[i] - dt);
+    state.flashRed = Math.max(0, state.flashRed - dt * 1.4);
+    state.dim = Math.max(0, state.dim - dt * 0.9);
+    if (state.banner) { state.banner.t += dt; if (state.banner.t > state.banner.life) state.banner = null; }
+
+    const p = state.player;
+    for (const v of state.vfx) {
+      v.t += dt;
+      v.x += v.vx * dt;
+      v.y += v.vy * dt;
+      if (v.follow) v.x = p.x;
+    }
+    state.vfx = state.vfx.filter((v) => v.t < v.life);
+
+    // thrown kom faek: flies out inside a spinning chakra, then curves back to Kan's hand
+    for (const s of state.shots) {
+      s.rot += dt * 26;
+      const step = s.def.speed * dt;
+      if (s.out) {
+        s.x += s.dir * step;
+        s.dist += step;
+        if (s.dist >= s.def.range) s.out = false;
+      } else {
+        const tx = p.x + p.facing * 20, ty = p.y - 62;
+        const dx = tx - s.x, dy = ty - s.y, d = Math.hypot(dx, dy);
+        const sp = s.def.speed * 1.15 * dt;
+        if (d <= sp + 6) { s.done = true; continue; }
+        s.x += (dx / d) * sp;
+        s.y += (dy / d) * sp;
+      }
+      const m = state.monster;
+      if (!s.hit && m && m.state !== "dead" && Math.abs(m.x - s.x) < 42) {
+        s.hit = true;
+        hitMonster({ dmg: s.def.dmg, dir: s.dir, power: 1, crit: 0.25, kb: 40, sparkColor: "#7ff6ff", sparkColor2: "#ffd23f" });
+      }
+    }
+    state.shots = state.shots.filter((s) => !s.done);
+  }
+
+  function drawVfx(camX, layer) {
+    for (const v of state.vfx) {
+      if ((v.key === "storm") !== (layer === "back")) continue;
+      const img = images[M.vfx[v.key]];
+      if (!img) continue;
+      const k = v.t / v.life;
+      const ease = 1 - Math.pow(1 - Math.min(1, k * 1.6), 3);
+      const sc = v.s0 + (v.s1 - v.s0) * ease;
+      let alpha = k < 0.12 ? k / 0.12 : k > 0.65 ? 1 - (k - 0.65) / 0.35 : 1;
+      if (v.flicker) alpha *= 0.82 + 0.18 * Math.sin(v.t * 60);
+      ctx.save();
+      ctx.translate(Math.round(v.x - camX), Math.round(v.y));
+      if (v.rot) ctx.rotate(v.rot);
+      const sx = (v.stretch ? sc : Math.max(0.4, sc)) * v.flip * (v.key === "storm" && Math.floor(v.t * 16) % 2 ? -1 : 1);
+      const sy = v.stretch ? Math.min(1.2, 0.7 + sc * 0.3) : sc;
+      ctx.scale(sx, sy);
+      const ox = v.anchor === "left" ? 0 : -img.width / 2;
+      const oy = v.anchor === "bottom" ? -img.height : -img.height / 2;
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(img, ox, oy);
+      if (v.glow) {
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = alpha * 0.35;
+        ctx.drawImage(img, ox, oy);
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawShots(camX) {
+    const img = images[M.vfx.chakra];
+    for (const s of state.shots) {
+      ctx.save();
+      ctx.translate(Math.round(s.x - camX), Math.round(s.y));
+      ctx.rotate(s.rot * s.dir);
+      ctx.drawImage(img, -img.width * 0.35, -img.height * 0.35, img.width * 0.7, img.height * 0.7);
+      ctx.globalCompositeOperation = "lighter";
+      ctx.globalAlpha = 0.35;
+      ctx.drawImage(img, -img.width * 0.35, -img.height * 0.35, img.width * 0.7, img.height * 0.7);
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
+      // the kom faek itself spinning in the middle of the chakra
+      ctx.fillStyle = "#7a3a1c";
+      ctx.fillRect(-18, -3, 36, 6);
+      ctx.fillStyle = "#b8653a";
+      ctx.fillRect(-18, -3, 36, 2);
+      ctx.restore();
+    }
+  }
+
+  function drawBanner(camX) {
+    const b = state.banner;
+    if (!b) return;
+    const p = state.player;
+    const k = b.t / b.life;
+    const pop = k < 0.12 ? 0.7 + (k / 0.12) * 0.4 : k < 0.2 ? 1.1 - ((k - 0.12) / 0.08) * 0.1 : 1;
+    const alpha = k > 0.8 ? 1 - (k - 0.8) / 0.2 : 1;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(Math.round(p.x - camX), Math.round(p.y - 128 - k * 8));
+    ctx.scale(pop, pop);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = (b.ult ? "800 22px" : "600 17px") + " 'Kanit', 'Noto Sans Thai', sans-serif";
+    if (b.ult) {
+      const w = ctx.measureText(b.text).width + 34;
+      ctx.fillStyle = "rgba(120, 10, 10, 0.75)";
+      ctx.beginPath();
+      ctx.moveTo(-w / 2 - 10, 0); ctx.lineTo(-w / 2, -16); ctx.lineTo(w / 2, -16);
+      ctx.lineTo(w / 2 + 10, 0); ctx.lineTo(w / 2, 16); ctx.lineTo(-w / 2, 16); ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#ffd23f";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#120d1c";
+    ctx.strokeText(b.text, 0, 1);
+    ctx.fillStyle = b.ult ? "#fff1b0" : "#ffd23f";
+    ctx.fillText(b.text, 0, 1);
+    ctx.restore();
+  }
+
+  // ultimate cut-in: darken the stage behind the fighters
+  function drawScreenDim() {
+    if (state.dim > 0) {
+      ctx.fillStyle = `rgba(10, 4, 16, ${state.dim * 0.6})`;
+      ctx.fillRect(-20, -20, W + 40, H + 40);
+    }
+  }
+
+  function drawScreenFlash() {
+    if (state.flashRed > 0) {
+      ctx.fillStyle = `rgba(220, 30, 20, ${state.flashRed * 0.35})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // desktop skill bar (phones use the on-screen buttons instead)
+  function drawSkillBar() {
+    if (isTouch) return;
+    const size = 34, gap = 8;
+    const x0 = W - 3 * (size + gap) - 6, y0 = H - size - 12;
+    const keysLbl = ["U", "I", "O"];
+    for (let i = 0; i < 3; i++) {
+      const def = SKILLS[loadout[i]];
+      const x = x0 + i * (size + gap);
+      ctx.fillStyle = "rgba(18,13,28,0.75)";
+      ctx.fillRect(x - 2, y0 - 2, size + 4, size + 4);
+      const img = images[M.vfx[def.icon]];
+      if (img) {
+        const s = Math.min(size / img.width, size / img.height);
+        ctx.drawImage(img, x + (size - img.width * s) / 2, y0 + (size - img.height * s) / 2, img.width * s, img.height * s);
+      }
+      const cd = state.cooldowns[i];
+      if (cd > 0) {
+        const frac = cd / def.cd;
+        ctx.fillStyle = "rgba(10,6,18,0.7)";
+        ctx.beginPath();
+        ctx.moveTo(x + size / 2, y0 + size / 2);
+        ctx.arc(x + size / 2, y0 + size / 2, size * 0.75, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+        ctx.closePath();
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x, y0, size, size); ctx.clip();
+        ctx.beginPath();
+        ctx.moveTo(x + size / 2, y0 + size / 2);
+        ctx.arc(x + size / 2, y0 + size / 2, size * 0.75, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        ctx.font = "10px 'Silkscreen', monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#f3e9d2";
+        ctx.fillText(Math.ceil(cd), x + size / 2, y0 + size / 2 + 4);
+      }
+      ctx.strokeStyle = def.ult ? "#e4483f" : "#ffd23f";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x - 1, y0 - 1, size + 2, size + 2);
+      ctx.font = "8px 'Silkscreen', monospace";
+      ctx.textAlign = "left";
+      ctx.fillStyle = "#f3e9d2";
+      ctx.fillText(keysLbl[i], x + 2, y0 + 9);
+    }
+  }
+
+  // phone skill buttons: icons and cooldown sweep
+  const skillBtns = [...document.querySelectorAll(".skill[data-act^='skill']")];
+  function syncSkillButtons() {
+    skillBtns.forEach((btn, i) => {
+      const def = SKILLS[loadout[i]];
+      btn.style.setProperty("--icon", `url("${M.vfx[def.icon]}")`);
+      btn.classList.toggle("ult", !!def.ult);
+      btn.setAttribute("aria-label", def.name);
+      const lbl = btn.querySelector("span");
+      if (lbl) lbl.textContent = def.name;
+    });
+  }
+  function updateSkillButtons() {
+    skillBtns.forEach((btn, i) => {
+      const def = SKILLS[loadout[i]];
+      const cd = state.cooldowns[i];
+      btn.style.setProperty("--cd", String(cd > 0 ? cd / def.cd : 0));
+      const n = btn.querySelector("b");
+      if (n) n.textContent = cd > 0 ? Math.ceil(cd) : "";
+    });
+  }
+
+  // skill picker: choose 3 of 7
+  const picker = document.getElementById("picker");
+  let pickerOpen = false;
+  function renderPicker() {
+    const list = picker.querySelector(".pick-list");
+    list.textContent = "";
+    for (const id of SKILL_ORDER) {
+      const def = SKILLS[id];
+      const slot = loadout.indexOf(id);
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "pick" + (slot >= 0 ? " on" : "") + (def.ult ? " ult" : "");
+      b.setAttribute("aria-pressed", slot >= 0 ? "true" : "false");
+      b.innerHTML = `<img alt="" src="${M.vfx[def.icon]}"><span class="pn">${def.name}</span>` +
+        `<span class="pd">${def.desc}</span><span class="pc">${def.ult ? "ULT · " : ""}CD ${def.cd}s</span>` +
+        (slot >= 0 ? `<em>${slot + 1}</em>` : "");
+      b.addEventListener("click", () => togglePick(id));
+      li.appendChild(b);
+      list.appendChild(li);
+    }
+    picker.querySelector(".pick-note").textContent =
+      loadout.length < 3 ? `เลือกอีก ${3 - loadout.length} ท่า` : "ติดตั้งครบ 3 ท่าแล้ว แตะท่าที่เลือกไว้เพื่อถอดออก";
+    picker.querySelector(".pick-done").disabled = loadout.length !== 3;
+  }
+  function togglePick(id) {
+    const i = loadout.indexOf(id);
+    if (i >= 0) loadout.splice(i, 1);
+    else if (loadout.length < 3) loadout.push(id);
+    else {
+      const note = picker.querySelector(".pick-note");
+      note.textContent = "เลือกได้ 3 ท่า แตะท่าที่เลือกไว้เพื่อถอดออกก่อน";
+      note.classList.remove("shake"); void note.offsetWidth; note.classList.add("shake");
+      return;
+    }
+    renderPicker();
+  }
+  function openPicker() {
+    pickerOpen = true;
+    picker.hidden = false;
+    keys.clear();
+    renderPicker();
+  }
+  function closePicker() {
+    if (loadout.length !== 3) return;
+    pickerOpen = false;
+    picker.hidden = true;
+    try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(loadout)); } catch (_) { /* ignore */ }
+    state.cooldowns = [0, 0, 0];
+    syncSkillButtons();
+    canvas.focus();
+  }
+  if (picker) {
+    picker.querySelector(".pick-done").addEventListener("click", closePicker);
+    for (const b of document.querySelectorAll("[data-open-picker]")) b.addEventListener("click", openPicker);
+    addEventListener("keydown", (e) => {
+      if (e.code === "KeyK" && e.shiftKey) return;
+      if (e.code === "Tab" && !pickerOpen) { e.preventDefault(); openPicker(); }
+      else if ((e.code === "Escape" || e.code === "Tab") && pickerOpen) { e.preventDefault(); closePicker(); }
+    });
+  }
+
   // ---------- update ----------
   function update(dt) {
+    if (pickerOpen) { pressed.clear(); return; }
     if (state.over && pressed.has("restart")) reset();
     if (pressed.has("restart") && !state.over) reset();
 
@@ -512,6 +1067,7 @@
       return;
     }
 
+    updateSkillWorld(dt);
     updatePlayer(dt);
     updateMonster(dt);
 
@@ -566,7 +1122,9 @@
     const p = state.player;
     const a = M.player.anims[p.anim];
     let frame;
-    if (p.anim === "jump") {
+    if (p.skill) {
+      frame = skillFrame(p.skill);
+    } else if (p.anim === "jump") {
       // map air time onto the jump frames: rise, peak, fall
       // frames 2..6 of the clip are the airborne poses: rise, tuck, fall
       const airT = (2 * -JUMP_V) / GRAVITY;
@@ -603,11 +1161,20 @@
       oy = m.t * 20;
     }
     if (m.hitStun > 0) ox += Math.sin(m.hitStun * 60) * 3;
+    // knocked down: tip over backwards, lie still, then get up again
+    let rot = 0;
+    if (m.downT > 0) {
+      const gone = m.downMax - m.downT;
+      const k = gone < 0.22 ? gone / 0.22 : m.downT < 0.3 ? m.downT / 0.3 : 1;
+      rot = -m.facing * (Math.PI / 2) * k;
+      oy = 0;
+    }
 
     drawShadow(m.x - camX, GROUND_Y, 38);
     ctx.save();
     ctx.globalAlpha = m.alpha;
     ctx.translate(Math.round(m.x - camX + ox), Math.round(m.y + oy));
+    if (rot) ctx.rotate(rot);
     // the art faces left; flip when the monster faces right
     ctx.scale(-m.facing * s * sx * M.monster.artFacing, s * sy);
     if (m.flash > 0 || m.state === "windup") {
@@ -639,6 +1206,26 @@
       ctx.fillRect(bx, by, Math.round(bw * (m.hp / m.maxHp)), bh);
       ctx.fillStyle = "rgba(255,255,255,0.35)";
       ctx.fillRect(bx, by, Math.round(bw * (m.hp / m.maxHp)), 2);
+    }
+  }
+
+  function drawStunStars(camX) {
+    const m = state.monster;
+    if (!m || m.stunT <= 0) return;
+    const cx = m.x - camX, cy = m.y - M.monster.barHeight + 18;
+    for (let i = 0; i < 3; i++) {
+      const a = state.time * 5 + (i * Math.PI * 2) / 3;
+      const x = cx + Math.cos(a) * 24, y = cy + Math.sin(a) * 6;
+      ctx.save();
+      ctx.translate(Math.round(x), Math.round(y));
+      ctx.rotate(a);
+      burstPath(0, 0, 2.5, 6, 5, 0);
+      ctx.fillStyle = "#ffe14a";
+      ctx.fill();
+      ctx.strokeStyle = "#5a3a00";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -874,16 +1461,25 @@
     ctx.save();
     ctx.translate(0, Math.round(sy));
     drawBackground(camX);
+    drawScreenDim();
+    drawVfx(camX, "back");
     // draw whoever is further back first
     const m = state.monster;
     if (m && m.y < state.player.y) { drawMonster(camX); drawPlayer(camX); }
     else { drawPlayer(camX); drawMonster(camX); }
+    drawStunStars(camX);
     drawWaves(camX);
     drawSlash(camX);
+    drawVfx(camX, "front");
+    drawShots(camX);
     drawSparks(camX);
     drawPopups(camX);
+    drawBanner(camX);
     ctx.restore();
+    drawScreenFlash();
     drawHud();
+    drawSkillBar();
+    updateSkillButtons();
   }
 
   // ---------- loop ----------
@@ -898,6 +1494,7 @@
 
   fitCanvas();
   reset();
+  syncSkillButtons();
   const status = document.getElementById("status");
   loadImages()
     .then(() => document.fonts?.load("16px 'Silkscreen'").catch(() => {}))

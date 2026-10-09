@@ -184,8 +184,8 @@
     position: absolute;
     right: var(--edge-r);
     bottom: var(--edge-b);
-    width: 190px;
-    height: 170px;
+    width: 270px;
+    height: 230px;
   }
   .skill {
     position: absolute;
@@ -223,14 +223,152 @@
   }
   .skill.attack svg { width: 50%; height: 50%; }
   .skill.jump {
-    right: 112px;
-    bottom: 6px;
-    width: 64px;
-    height: 64px;
+    right: 196px;
+    bottom: 2px;
+    width: 58px;
+    height: 58px;
     background: radial-gradient(circle at 50% 35%, #4a2f5c, var(--plum));
     box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--night);
   }
   .skill.on { filter: brightness(1.35); transform: scale(0.94); }
+
+  /* three equipped skills in an arc around the attack button */
+  .skill.sk {
+    --cd: 0;
+    width: 62px;
+    height: 62px;
+    background: var(--icon) center / 78% no-repeat, radial-gradient(circle at 50% 40%, #3b2550, var(--night));
+    box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--night), 0 4px 12px rgba(0, 0, 0, 0.4);
+    image-rendering: pixelated;
+  }
+  .skill.sk.ult { box-shadow: 0 0 0 2px var(--ember), 0 0 0 4px var(--night), 0 0 14px rgba(228, 72, 63, 0.6); }
+  .skill.sk::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: conic-gradient(rgba(10, 6, 18, 0.72) calc(var(--cd) * 360deg), transparent 0);
+    pointer-events: none;
+  }
+  .skill.sk b {
+    position: relative;
+    z-index: 1;
+    font-family: var(--font-pixel);
+    font-weight: 400;
+    font-size: 16px;
+    color: var(--paper);
+    text-shadow: 0 2px 0 var(--night);
+  }
+  .skill.sk span {
+    bottom: -16px;
+    white-space: nowrap;
+    font-family: var(--font-display);
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+  .sk1 { right: 118px; bottom: 6px; }
+  .sk2 { right: 112px; bottom: 92px; }
+  .sk3 { right: 30px; bottom: 132px; }
+
+  /* skill picker */
+  #picker {
+    position: fixed;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(10, 6, 18, 0.82);
+  }
+  #picker[hidden] { display: none; }
+  .pick-panel {
+    width: min(100%, 760px);
+    max-height: 100%;
+    overflow: auto;
+    background: var(--plum);
+    border: 2px solid var(--dusk);
+    border-radius: 12px;
+    padding: 16px;
+    display: grid;
+    gap: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  }
+  .pick-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .pick-head h2 { margin: 0; font-size: 1.3rem; color: var(--gold); font-weight: 800; }
+  .pick-note { margin: 0; color: var(--muted); font-size: 0.9rem; }
+  .pick-note.shake { animation: nudge 0.3s; color: var(--ember); }
+  @keyframes nudge { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+  .pick-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+    gap: 8px;
+  }
+  .pick {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    grid-template-rows: auto auto auto;
+    column-gap: 10px;
+    align-items: center;
+    text-align: left;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--dusk);
+    background: var(--night);
+    color: var(--paper);
+    font-family: var(--font-display);
+    cursor: pointer;
+  }
+  .pick img { grid-row: 1 / 4; width: 52px; height: 52px; object-fit: contain; image-rendering: pixelated; }
+  .pick .pn { font-weight: 600; font-size: 1rem; }
+  .pick .pd { color: var(--muted); font-size: 0.8rem; line-height: 1.3; }
+  .pick .pc { font-family: var(--font-pixel); font-size: 0.65rem; color: var(--muted); }
+  .pick.ult .pc { color: var(--ember); }
+  .pick.on { border-color: var(--gold); background: #2a1c3a; }
+  .pick:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .pick em {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-style: normal;
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    color: var(--night);
+    background: var(--gold);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+  }
+  .pick-done {
+    justify-self: end;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 22px;
+    border-radius: 999px;
+    border: 0;
+    background: var(--gold);
+    color: var(--night);
+    cursor: pointer;
+  }
+  .pick-done:disabled { opacity: 0.4; cursor: not-allowed; }
+  .open-skills {
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    cursor: pointer;
+  }
   .sys {
     position: absolute;
     top: max(8px, env(safe-area-inset-top, 0px));
@@ -291,12 +429,16 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
         <span>JUMP</span>
       </button>
+      <button class="skill sk sk1" data-act="skill1"><b></b><span></span></button>
+      <button class="skill sk sk2" data-act="skill2"><b></b><span></span></button>
+      <button class="skill sk sk3" data-act="skill3"><b></b><span></span></button>
       <button class="skill attack" data-act="attack" aria-label="โจมตี ฟาดคมแฝก">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff4d6" stroke-width="2.6" stroke-linecap="round"><path d="M5 19L17 5"/><path d="M4 16l4 4"/><path d="M15 4.5c2.5-.5 4.5 1.5 4.5 4" stroke-width="1.6" opacity=".8"/></svg>
       </button>
     </div>
     <div class="sys">
       <button data-act="restart" aria-label="เริ่มใหม่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
+      <button data-open-picker aria-label="เลือกสกิล"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></button>
       <button id="fullscreen" aria-label="เต็มจอ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
   </div>
@@ -307,9 +449,22 @@
   <li class="keys"><kbd>↑</kbd> / <kbd>Space</kbd> กระโดด</li>
   <li class="keys"><kbd>J</kbd> / <kbd>X</kbd> ฟาดคมแฝก กดต่อเนื่องได้ 5 จังหวะ</li>
   <li class="keys">กระโดดแล้วกด <kbd>J</kbd> คอมโบกลางอากาศ 3 จังหวะ ปิดท้ายด้วยฟาดดิ่งลงพื้น</li>
+  <li class="keys"><kbd>U</kbd><kbd>I</kbd><kbd>O</kbd> ใช้สกิล 3 ช่อง</li>
+  <li class="keys"><button class="open-skills" type="button" data-open-picker>เลือกสกิล (Tab)</button></li>
   <li class="keys"><kbd>R</kbd> เริ่มใหม่</li>
   <li class="crit">พื้นแดง เลขเหลือง = คริติคอล</li>
 </ul>
+
+<div id="picker" hidden>
+  <div class="pick-panel" role="dialog" aria-modal="true" aria-labelledby="pick-title">
+    <div class="pick-head">
+      <h2 id="pick-title">เลือกสกิล 3 ท่า</h2>
+      <p class="pick-note"></p>
+    </div>
+    <ul class="pick-list"></ul>
+    <button class="pick-done" type="button">ใช้ชุดนี้</button>
+  </div>
+</div>
 
 <div id="rotate" role="status">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>

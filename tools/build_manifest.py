@@ -24,7 +24,18 @@ ANIMS = {
     "air2": dict(duration=0.30, playFor=0.7, hitAt=0.7 * 0.5, anchorY=166),
     # the plunge's last two frames are the landing crouch, feet at y=200
     "air3": dict(duration=0.42, playFor=0.6, hitAt=0.6 * 0.75, bottoms=[166, 166, 200, 200]),
+    # skills: 3 frames each; timing and hits live in SKILLS in game.js
+    "sk_wing": dict(duration=0.5),
+    "sk_naga": dict(duration=0.62),
+    "sk_chakra": dict(duration=0.3),
+    "sk_tiger": dict(duration=0.62),
+    "sk_quake": dict(duration=0.48),
+    "sk_storm": dict(duration=0.95),
+    # the leap: rising, falling and landed poses pinned by their feet
+    "sk_yama": dict(duration=0.6, bottoms=[169, 159, 222]),
 }
+
+VFX = ["bird", "naga", "chakra", "tiger", "rocks", "yama", "storm"]
 
 anims = {}
 for name, cfg in ANIMS.items():
@@ -36,7 +47,7 @@ for name, cfg in ANIMS.items():
     a.update({k: v for k, v in cfg.items() if k != "loop"})
     if "duration" not in a:
         a["duration"] = n / a["fps"]
-    if name == "jump":
+    if name == "jump" and "bottoms" not in cfg:
         # the clip moves the body inside the frame; pin each frame by its feet instead
         a["bottoms"] = [strip.crop((i * FRAME, 0, (i + 1) * FRAME, FRAME)).getbbox()[3] for i in range(n)]
     anims[name] = a
@@ -46,6 +57,7 @@ manifest = {
     "groundY": 318,
     "background": "assets/bg_village.png",
     "portrait": "assets/kan_portrait.png",
+    "vfx": {k: f"assets/vfx_{k}.png" for k in VFX},
     "portraitCrop": {"x": 92, "y": 50, "w": 120, "h": 120},
     "player": {"scale": 0.62, "anims": anims, "reach": [96, 90, 104, 98, 118]},
     "monster": {"image": "assets/monster_yak.png", "anchorX": 84, "anchorY": 160, "scale": 0.85,

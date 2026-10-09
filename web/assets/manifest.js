@@ -4,6 +4,15 @@ window.MANIFEST = {
  "groundY": 318,
  "background": "assets/bg_village.png",
  "portrait": "assets/kan_portrait.png",
+ "vfx": {
+  "bird": "assets/vfx_bird.png",
+  "naga": "assets/vfx_naga.png",
+  "chakra": "assets/vfx_chakra.png",
+  "tiger": "assets/vfx_tiger.png",
+  "rocks": "assets/vfx_rocks.png",
+  "yama": "assets/vfx_yama.png",
+  "storm": "assets/vfx_storm.png"
+ },
  "portraitCrop": {
   "x": 92,
   "y": 50,
@@ -156,6 +165,81 @@ window.MANIFEST = {
      166,
      200,
      200
+    ]
+   },
+   "sk_wing": {
+    "image": "assets/kan_sk_wing.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.5
+   },
+   "sk_naga": {
+    "image": "assets/kan_sk_naga.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.62
+   },
+   "sk_chakra": {
+    "image": "assets/kan_sk_chakra.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.3
+   },
+   "sk_tiger": {
+    "image": "assets/kan_sk_tiger.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.62
+   },
+   "sk_quake": {
+    "image": "assets/kan_sk_quake.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.48
+   },
+   "sk_storm": {
+    "image": "assets/kan_sk_storm.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.95
+   },
+   "sk_yama": {
+    "image": "assets/kan_sk_yama.png",
+    "frames": 3,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.6,
+    "bottoms": [
+     169,
+     159,
+     222
     ]
    }
   },
