@@ -11,18 +11,23 @@
   const WALK_SPEED = 165;
   const JUMP_V = -640;
   const COMBO_WINDOW = 0.38;        // seconds after an attack ends to chain the next
-  const CRIT_CHANCE = [0.15, 0.15, 0.18, 0.2, 0.35];
-  const COMBO_DAMAGE = [[9, 13], [10, 14], [12, 16], [14, 19], [24, 32]];
-  const COMBO_KNOCKBACK = [30, 34, 44, 52, 140];
-  // per hit of the 5-hit combo: swing direction on screen when facing right
-  // (+1 = left to right, -1 = right to left) and how heavy the effects are
-  const SWINGS = [
-    { dir: 1, power: 0 },
-    { dir: -1, power: 0 },
-    { dir: 1, power: 1 },
-    { dir: -1, power: 1 },
-    { dir: 1, power: 2 },   // spinning finisher
+  // Attack tables. dir: swing direction on screen when facing right (+1 = left to right,
+  // -1 = right to left). power: 0 normal, 1 heavy, 2 finisher (bigger trail, shake, shockwave).
+  const GROUND_ATTACKS = [
+    { anim: "attack1", dmg: [9, 13], crit: 0.15, kb: 30, reach: 96, dir: 1, power: 0, drift: 25 },
+    { anim: "attack2", dmg: [10, 14], crit: 0.15, kb: 34, reach: 90, dir: -1, power: 0, drift: 25 },
+    { anim: "attack3", dmg: [12, 16], crit: 0.18, kb: 44, reach: 104, dir: 1, power: 1, drift: 25 },
+    { anim: "attack4", dmg: [14, 19], crit: 0.2, kb: 52, reach: 98, dir: -1, power: 1, drift: 70 },
+    { anim: "attack5", dmg: [24, 32], crit: 0.35, kb: 140, reach: 118, dir: 1, power: 2, drift: 40, spin: true },
   ];
+  // Air combo: two slashes that keep Kan hanging in the air, then a plunging slam.
+  const AIR_ATTACKS = [
+    { anim: "air1", dmg: [10, 14], crit: 0.18, kb: 20, reach: 98, dir: 1, power: 0 },
+    { anim: "air2", dmg: [11, 15], crit: 0.2, kb: 24, reach: 94, dir: -1, power: 1 },
+    { anim: "air3", dmg: [22, 30], crit: 0.3, kb: 130, reach: 112, dir: 1, power: 2, plunge: true },
+  ];
+  const attacksOf = (p) => (p.air ? AIR_ATTACKS : GROUND_ATTACKS);
+  const curAttack = (p) => attacksOf(p)[p.combo];
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -200,6 +205,8 @@
       hp: 100, maxHp: 100,
       anim: "idle", t: 0, onGround: true,
       combo: -1,            // index of attack being played, -1 = none
+      air: false,           // true while the air combo is playing
+      airUsed: false,       // one air combo per jump
       queued: false, hitDone: false, sinceAttack: 99,
       hurtT: 0, invulnT: 0,
     };
@@ -245,10 +252,27 @@
   // ---------- player ----------
   function startAttack(p, idx) {
     p.combo = idx;
-    p.anim = "attack" + (idx + 1);
+    p.anim = attacksOf(p)[idx].anim;
     p.t = 0;
     p.queued = false;
     p.hitDone = false;
+    // each air slash stops the fall with a tiny lift so the combo stays airborne
+    if (p.air && !attacksOf(p)[idx].plunge) p.vy = -70;
+  }
+
+  function endAttack(p) {
+    if (!p.air) state.lastCombo = p.combo;
+    p.sinceAttack = 0;
+    p.combo = -1;
+    p.air = false;
+    p.t = 0;
+    if (p.onGround) {
+      p.anim = "idle";
+    } else {
+      // fall out of an air combo using the falling poses of the jump clip
+      p.anim = "jump";
+      p.t = ((2 * -JUMP_V) / GRAVITY) * 0.7;
+    }
   }
 
   function updatePlayer(dt) {
@@ -272,31 +296,56 @@
     // attack input
     if (pressed.has("attack")) {
       if (!attacking && p.onGround) {
-        const next = p.sinceAttack < COMBO_WINDOW && state.lastCombo < 4 ? state.lastCombo + 1 : 0;
+        p.air = false;
+        const next = p.sinceAttack < COMBO_WINDOW && state.lastCombo < GROUND_ATTACKS.length - 1 ? state.lastCombo + 1 : 0;
         startAttack(p, next);
-      } else if (attacking && p.combo < 4) {
+      } else if (!attacking && !p.airUsed) {
+        p.air = true;
+        p.airUsed = true;
+        startAttack(p, 0);
+      } else if (attacking && p.combo < attacksOf(p).length - 1) {
         p.queued = true;
       }
     }
 
     if (p.combo >= 0) {
-      // during attacks the player commits; a little forward drift sells the swing
-      p.vx = p.facing * (p.combo === 3 ? 70 : p.combo === 4 ? 40 : 25) * (p.t < animDef.duration * 0.5 ? 1 : 0);
+      const atk = curAttack(p);
+      const strikeT = animDef.duration * animDef.playFor * 0.75;   // start of the strike frame
+      if (atk.plunge) {
+        // wind up in the air, then dive; the strike frame lands with the body
+        if (!p.onGround) {
+          if (p.t > animDef.duration * animDef.playFor * 0.25) {
+            p.vy = Math.max(p.vy, 980);
+            p.vx = p.facing * 110;
+          } else {
+            p.vy = Math.min(p.vy, 0);
+            p.vx = 0;
+          }
+          p.t = Math.min(p.t, strikeT - 0.001);
+        } else {
+          p.vx = 0;
+          if (!p.hitDone) {
+            p.hitDone = true;
+            p.t = strikeT;
+            state.shake = Math.max(state.shake, 5);
+            addShockwave(p.x + p.facing * 30, GROUND_Y);
+            resolvePlayerHit(p);
+          }
+        }
+      } else if (p.air) {
+        p.vx = p.facing * 35;
+      } else {
+        // during ground attacks the player commits; a little forward drift sells the swing
+        p.vx = p.t < animDef.duration * 0.5 ? p.facing * atk.drift : 0;
+      }
       const progress = p.t / animDef.duration;
-      if (!p.hitDone && progress >= animDef.hitAt) {
+      if (!atk.plunge && !p.hitDone && progress >= animDef.hitAt) {
         p.hitDone = true;
         resolvePlayerHit(p);
       }
       if (progress >= 1) {
-        state.lastCombo = p.combo;
-        p.sinceAttack = 0;
-        if (p.queued && p.combo < 4) {
-          startAttack(p, p.combo + 1);
-        } else {
-          p.combo = -1;
-          p.anim = "idle";
-          p.t = 0;
-        }
+        if (p.queued && p.combo < attacksOf(p).length - 1) startAttack(p, p.combo + 1);
+        else endAttack(p);
       }
     } else {
       let dir = 0;
@@ -318,16 +367,20 @@
       }
     }
 
-    // physics
+    // physics: air slashes hang in the air with much lighter gravity
+    const hovering = p.combo >= 0 && p.air && !curAttack(p).plunge;
     p.x += p.vx * dt;
     if (!p.onGround) {
-      p.vy += GRAVITY * dt;
+      p.vy += (hovering ? GRAVITY * 0.18 : GRAVITY) * dt;
+      if (hovering) p.vy = Math.min(p.vy, 110);
       p.y += p.vy * dt;
       if (p.y >= GROUND_Y) {
         p.y = GROUND_Y;
         p.vy = 0;
         p.onGround = true;
+        p.airUsed = false;
         if (p.combo < 0) { p.anim = "idle"; p.t = 0; }
+        else if (p.air && !curAttack(p).plunge) endAttack(p);   // landed mid air-slash
       }
     }
     // bodies block each other on the ground; jumping clears the monster
@@ -342,26 +395,32 @@
   function resolvePlayerHit(p) {
     const m = state.monster;
     if (!m || m.state === "dead") return;
-    const reach = M.player.reach[p.combo];
+    const atk = curAttack(p);
     const dx = (m.x - p.x) * p.facing;
-    if (dx < -20 || dx > reach) return;
+    if (atk.plunge) {
+      if (Math.abs(m.x - p.x) > atk.reach) return;       // the slam hits all around the landing spot
+    } else if (dx < -20 || dx > atk.reach) {
+      return;
+    }
+    if (GROUND_Y - p.y > 165) return;                     // too high above the monster's head
 
-    const [lo, hi] = COMBO_DAMAGE[p.combo];
-    const crit = Math.random() < CRIT_CHANCE[p.combo];
+    const [lo, hi] = atk.dmg;
+    const crit = Math.random() < atk.crit;
     const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1));
     m.hp = Math.max(0, m.hp - dmg);
     m.flash = 0.75;
-    m.hitStun = p.combo === 4 ? 0.55 : 0.28;
-    // light pushback keeps the monster in reach until the finisher launches it
-    m.vx = p.facing * COMBO_KNOCKBACK[p.combo] * (crit ? 1.4 : 1) * (p.combo === 4 ? 4 : 1.5);
+    m.hitStun = atk.power === 2 ? 0.55 : 0.28;
+    // light pushback keeps the monster in reach until a finisher launches it
+    const away = atk.plunge ? Math.sign(m.x - p.x) || p.facing : p.facing;
+    m.vx = away * atk.kb * (crit ? 1.4 : 1) * (atk.power === 2 ? 4 : 1.5);
     if (m.state === "windup") { m.state = "walk"; m.cd = 1.1; }
 
     state.comboCount += 1;
     state.comboTimer = 1.6;
-    const power = SWINGS[p.combo].power;
+    const power = atk.power;
     state.hitStop = (crit ? 0.12 : 0.05) + power * 0.03;
     state.shake = (crit ? 8 : 2.5) + power * 3;
-    if (power === 2) addShockwave(m.x, GROUND_Y);
+    if (power === 2) addShockwave(atk.plunge ? p.x + p.facing * 30 : m.x, GROUND_Y);
 
     const hy = m.y - M.monster.hitHeight;
     addPopup(m.x + rand(-10, 10), hy, dmg, crit);
@@ -447,7 +506,8 @@
     if (state.hitStop > 0) {
       state.hitStop -= dt;
       // keep combo input alive through the impact freeze
-      if (pressed.has("attack") && state.player.combo >= 0 && state.player.combo < 4) state.player.queued = true;
+      const hp = state.player;
+      if (pressed.has("attack") && hp.combo >= 0 && hp.combo < attacksOf(hp).length - 1) hp.queued = true;
       pressed.clear();
       return;
     }
@@ -667,21 +727,22 @@
     const fade = k > strike ? 1 - (k - strike) / (1 - strike) : 1;
     if (fade <= 0) return;
 
-    const sw = SWINGS[p.combo];
-    const st = SLASH_STYLE[sw.power];
+    const sw = curAttack(p);
+    const st = SLASH_STYLE[sw.plunge ? 1 : sw.power];
     const cx = p.x - camX + p.facing * 22;
-    const cy = p.y - 58;
+    const cy = p.y - (p.air ? 40 : 58);
     // left-to-right swings arc over the top, right-to-left ones under the bottom
     let a0, a1;
-    if (sw.power === 2) { a0 = Math.PI; a1 = Math.PI + Math.PI * 2 * sweep; }
+    if (sw.plunge) { a0 = -Math.PI * 0.6; a1 = a0 + Math.PI * 1.05 * sweep; }
+    else if (sw.spin) { a0 = Math.PI; a1 = Math.PI + Math.PI * 2 * sweep; }
     else if (sw.dir === 1) { a0 = Math.PI * 1.05; a1 = a0 + Math.PI * 1.0 * sweep; }
     else { a0 = -0.05; a1 = a0 + Math.PI * 1.0 * sweep; }
-    const tail = sw.power === 2 ? Math.PI * 1.3 : Math.PI * 0.75;
+    const tail = sw.spin ? Math.PI * 1.3 : Math.PI * 0.75;
     const from = Math.max(a0, a1 - tail);
 
     ctx.save();
     ctx.translate(Math.round(cx), Math.round(cy));
-    ctx.scale(p.facing, sw.power === 2 ? 0.55 : 0.42);
+    ctx.scale(p.facing, sw.plunge ? 0.9 : sw.spin ? 0.55 : 0.42);
     ctx.lineCap = "round";
     ctx.globalAlpha = fade;
     const steps = 10;
@@ -784,10 +845,11 @@
       ctx.restore();
     }
 
-    // combo step pips: which of the 5 attacks is playing or ready to chain
+    // combo step pips: which attack of the ground (5) or air (3) combo is playing or ready to chain
     const step = p.combo >= 0 ? p.combo : (p.sinceAttack < COMBO_WINDOW ? state.lastCombo : -1);
-    if (atkBtn) atkBtn.style.setProperty("--combo", String((step + 1) / 5));
-    for (let i = 0; i < 5; i++) {
+    const pipCount = p.combo >= 0 ? attacksOf(p).length : GROUND_ATTACKS.length;
+    if (atkBtn) atkBtn.style.setProperty("--combo", String((step + 1) / pipCount));
+    for (let i = 0; i < pipCount; i++) {
       ctx.fillStyle = i <= step ? "#ffd23f" : "rgba(243,233,210,0.25)";
       ctx.fillRect(58 + i * 12, 54, 9, 4);
     }

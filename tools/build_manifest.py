@@ -19,6 +19,11 @@ ANIMS = {
     "attack3": dict(duration=0.36, playFor=0.7, hitAt=0.7 * 0.75),
     "attack4": dict(duration=0.36, playFor=0.7, hitAt=0.7 * 0.5),
     "attack5": dict(duration=0.50, playFor=0.7, hitAt=0.7 * 0.75),
+    # air combo, drawn from the jump's peak pose (feet at y=166 in these frames)
+    "air1": dict(duration=0.30, playFor=0.7, hitAt=0.7 * 0.75, anchorY=166),
+    "air2": dict(duration=0.30, playFor=0.7, hitAt=0.7 * 0.5, anchorY=166),
+    # the plunge's last two frames are the landing crouch, feet at y=200
+    "air3": dict(duration=0.42, playFor=0.6, hitAt=0.6 * 0.75, bottoms=[166, 166, 200, 200]),
 }
 
 anims = {}

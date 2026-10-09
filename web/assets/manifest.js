@@ -115,6 +115,48 @@ window.MANIFEST = {
     "duration": 0.5,
     "playFor": 0.7,
     "hitAt": 0.5249999999999999
+   },
+   "air1": {
+    "image": "assets/kan_air1.png",
+    "frames": 4,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 166,
+    "loop": false,
+    "duration": 0.3,
+    "playFor": 0.7,
+    "hitAt": 0.5249999999999999
+   },
+   "air2": {
+    "image": "assets/kan_air2.png",
+    "frames": 4,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 166,
+    "loop": false,
+    "duration": 0.3,
+    "playFor": 0.7,
+    "hitAt": 0.35
+   },
+   "air3": {
+    "image": "assets/kan_air3.png",
+    "frames": 4,
+    "frameW": 224,
+    "frameH": 224,
+    "anchorX": 95,
+    "anchorY": 220,
+    "loop": false,
+    "duration": 0.42,
+    "playFor": 0.6,
+    "hitAt": 0.44999999999999996,
+    "bottoms": [
+     166,
+     166,
+     200,
+     200
+    ]
    }
   },
   "reach": [
