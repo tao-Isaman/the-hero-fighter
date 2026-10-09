@@ -8,24 +8,26 @@
   let W = 640;
   const GROUND_Y = M.groundY;       // feet line in screen space
   const GRAVITY = 1900;
-  const WALK_SPEED = 165;
-  const JUMP_V = -640;
+  // ---------- the playable character (characters/<id>/character.js) ----------
+  const CH_ID = window.ACTIVE_CHARACTER || Object.keys(window.CHARACTERS)[0];
+  const CH = window.CHARACTERS[CH_ID];
+  const CH_BASE = `characters/${CH_ID}/`;
+  const WALK_SPEED = CH.walkSpeed;
+  const JUMP_V = CH.jumpVelocity;
   const COMBO_WINDOW = 0.38;        // seconds after an attack ends to chain the next
-  // Attack tables. dir: swing direction on screen when facing right (+1 = left to right,
-  // -1 = right to left). power: 0 normal, 1 heavy, 2 finisher (bigger trail, shake, shockwave).
-  const GROUND_ATTACKS = [
-    { anim: "attack1", dmg: [9, 13], crit: 0.15, kb: 30, reach: 96, dir: 1, power: 0, drift: 25 },
-    { anim: "attack2", dmg: [10, 14], crit: 0.15, kb: 34, reach: 90, dir: -1, power: 0, drift: 25 },
-    { anim: "attack3", dmg: [12, 16], crit: 0.18, kb: 44, reach: 104, dir: 1, power: 1, drift: 25 },
-    { anim: "attack4", dmg: [14, 19], crit: 0.2, kb: 52, reach: 98, dir: -1, power: 1, drift: 70 },
-    { anim: "attack5", dmg: [24, 32], crit: 0.35, kb: 140, reach: 118, dir: 1, power: 2, drift: 40, spin: true },
-  ];
-  // Air combo: two slashes that keep Kan hanging in the air, then a plunging slam.
-  const AIR_ATTACKS = [
-    { anim: "air1", dmg: [10, 14], crit: 0.18, kb: 20, reach: 98, dir: 1, power: 0 },
-    { anim: "air2", dmg: [11, 15], crit: 0.2, kb: 24, reach: 94, dir: -1, power: 1 },
-    { anim: "air3", dmg: [22, 30], crit: 0.3, kb: 130, reach: 112, dir: 1, power: 2, plunge: true },
-  ];
+  const GROUND_ATTACKS = CH.combo;
+  const AIR_ATTACKS = CH.airCombo;
+  const P_SCALE = CH.sprite.scale;
+  // clip table with the sprite defaults filled in; frame counts are set once images load
+  const P_ANIMS = {};
+  for (const [name, cfg] of Object.entries(CH.anims)) {
+    P_ANIMS[name] = {
+      frameW: CH.sprite.frameW, frameH: CH.sprite.frameH,
+      anchorX: CH.sprite.anchorX, anchorY: CH.sprite.anchorY,
+      loop: false, ...cfg, image: CH_BASE + cfg.image,
+    };
+  }
+  const PORTRAIT = CH_BASE + CH.portrait.image;
   const attacksOf = (p) => (p.air ? AIR_ATTACKS : GROUND_ATTACKS);
   const curAttack = (p) => attacksOf(p)[p.combo];
 
@@ -52,8 +54,8 @@
   // ---------- assets ----------
   const images = {};
   function loadImages() {
-    const names = new Set([M.background, M.portrait, M.monster.image]);
-    for (const a of Object.values(M.player.anims)) names.add(a.image);
+    const names = new Set([M.background, PORTRAIT, M.monster.image]);
+    for (const a of Object.values(P_ANIMS)) names.add(a.image);
     for (const v of Object.values(M.vfx)) names.add(v);
     for (const v of Object.values(M.vfxAnim)) names.add(v.image);
     return Promise.all([...names].map((src) => new Promise((res, rej) => {
@@ -62,6 +64,35 @@
       img.onerror = () => rej(new Error("Could not load " + src));
       img.src = src;
     })));
+  }
+
+  // Fill in what the images tell us: frame counts, default durations, and per-frame
+  // feet lines for clips marked bottoms: "auto".
+  function finalizeAnims() {
+    const cv = document.createElement("canvas");
+    const cx = cv.getContext("2d", { willReadFrequently: true });
+    for (const a of Object.values(P_ANIMS)) {
+      const img = images[a.image];
+      a.frames = Math.max(1, Math.round(img.width / a.frameW));
+      if (!a.duration) a.duration = a.frames / (a.fps || 12);
+      if (a.bottoms === "auto") {
+        cv.width = img.width;
+        cv.height = img.height;
+        cx.clearRect(0, 0, cv.width, cv.height);
+        cx.drawImage(img, 0, 0);
+        const data = cx.getImageData(0, 0, img.width, img.height).data;
+        a.bottoms = [];
+        for (let f = 0; f < a.frames; f++) {
+          let bottom = a.anchorY;
+          scan: for (let y = a.frameH - 1; y >= 0; y--) {
+            for (let x = f * a.frameW; x < (f + 1) * a.frameW; x++) {
+              if (data[(y * img.width + x) * 4 + 3] > 0) { bottom = y + 1; break scan; }
+            }
+          }
+          a.bottoms.push(bottom);
+        }
+      }
+    }
   }
 
   // ---------- input ----------
@@ -206,7 +237,7 @@
   function newPlayer() {
     return {
       x: 160, y: GROUND_Y, vx: 0, vy: 0, facing: 1,
-      hp: 100, maxHp: 100,
+      hp: CH.hp, maxHp: CH.hp,
       anim: "idle", t: 0, onGround: true,
       combo: -1,            // index of attack being played, -1 = none
       air: false,           // true while the air combo is playing
@@ -291,7 +322,7 @@
 
   function updatePlayer(dt) {
     const p = state.player;
-    const animDef = M.player.anims[p.anim];
+    const animDef = P_ANIMS[p.anim];
     p.t += dt;
     p.sinceAttack += dt;
     p.invulnT = Math.max(0, p.invulnT - dt);
@@ -525,59 +556,12 @@
   }
 
   // ---------- skills ----------
-  // Each skill plays a 3-frame clip. `frames` are the clip times (fraction of `dur`) where
-  // frames 1, 2 and 3 start; `hits` land at fractions of `dur`. Ultimates (ult) get a
-  // screen dim + longer cooldown. Effects (vfx) are PixelLab sprites tweened in code.
-  const SKILLS = {
-    wing: {
-      name: "หักปีกปักษา", desc: "ฟันซ้าย-ขวา 2 ครั้ง วิญญาณนกโฉบใส่", cd: 5, dur: 0.5,
-      frames: [0, 0.16, 0.5], icon: "bird", assist: 110,
-      hits: [
-        { at: 0.2, dmg: [16, 22], reach: 155, power: 1, vfx: "bird" },
-        { at: 0.55, dmg: [18, 25], reach: 165, power: 1, vfx: "bird2" },
-      ],
-    },
-    naga: {
-      name: "นาคาพ่นไฟ", desc: "แทงระยะไกล พญานาคพ่นไฟ", cd: 7, dur: 0.62,
-      frames: [0, 0.14, 0.28], icon: "naga",
-      hits: [{ at: 0.3, dmg: [30, 40], reach: 280, power: 1, vfx: "naga", burn: true }],
-    },
-    chakra: {
-      name: "คมจักรนารายณ์", desc: "ขว้างคมแฝกหมุนเป็นจักร ไปแล้ววนกลับ", cd: 6, dur: 0.3,
-      frames: [0, 0.35, 0.7], icon: "chakra", throwAt: 0.7, holdUntilCatch: true,
-      shot: { dmg: [26, 34], range: 300, speed: 520 },
-    },
-    tiger: {
-      name: "พยัคฆ์ล้มสิงขร", desc: "แทงแล้วฟาดเสยขึ้น ศัตรูล้ม", cd: 8, dur: 0.62,
-      frames: [0, 0.3, 0.52], icon: "tiger", assist: 100,
-      hits: [
-        { at: 0.12, dmg: [14, 18], reach: 145, power: 1, vfx: "tiger" },
-        { at: 0.56, dmg: [22, 30], reach: 135, power: 2, knockdown: 1.4, vfx: "tigerUp" },
-      ],
-    },
-    quake: {
-      name: "สะท้านบรรพต", desc: "กระแทกระยะประชิด ศัตรูมึนงง", cd: 7, dur: 0.48,
-      frames: [0, 0.2, 0.38], icon: "rocks", assist: 70,
-      hits: [{ at: 0.4, dmg: [18, 24], reach: 105, power: 1, stun: 2.2, vfx: "rocks" }],
-    },
-    yama: {
-      name: "พญายมข่มธรณี", desc: "ไม้ตาย กระโดดฟาดพื้น ระเบิดแดง ศัตรูล้ม", cd: 16, ult: true,
-      icon: "yama", leap: true,
-      hit: { dmg: [60, 80], reach: 160, power: 2, knockdown: 1.8, vfx: "yama" },
-    },
-    storm: {
-      name: "อัคคีสาดแสง", desc: "ไม้ตาย หมุนตัวฟัน 3 ครั้ง พายุลมขาวฟ้า", cd: 15, ult: true, dur: 0.95,
-      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 120, assist: 90,
-      hits: [
-        { at: 0.25, dmg: [16, 22], reach: 140, both: true, power: 1, vfx: "sparks" },
-        { at: 0.52, dmg: [16, 22], reach: 140, both: true, power: 1, vfx: "sparks" },
-        { at: 0.8, dmg: [22, 30], reach: 145, both: true, power: 2, vfx: "sparks" },
-      ],
-    },
-  };
-  const SKILL_ORDER = ["wing", "naga", "chakra", "tiger", "quake", "yama", "storm"];
-  const LOADOUT_KEY = "komfaek.skills";
-  let loadout = ["wing", "naga", "yama"];
+  // Skill data lives in the character file; the engine only knows the generic behaviors
+  // (hits, fx, aura, shot, leap, assist, drift, loopFrames). See characters/README.md.
+  const SKILLS = CH.skills;
+  const SKILL_ORDER = CH.skillOrder;
+  const LOADOUT_KEY = `komfaek.skills.${CH_ID}`;
+  let loadout = [...CH.defaultLoadout];
   try {
     const saved = JSON.parse(localStorage.getItem(LOADOUT_KEY) || "null");
     if (Array.isArray(saved) && saved.length === 3 && saved.every((id) => SKILLS[id])) loadout = saved;
@@ -700,16 +684,12 @@
           sk.phase = 2;
           sk.t = 0;
           const h = def.hit;
-          const fx = p.x + p.facing * 34;
-          addVfx("yama", fx, GROUND_Y, { life: 0.9, s0: 0.5, s1: 1.7, anchor: "bottom", flicker: true });
-          addShockwave(fx, GROUND_Y);
-          addShockwave(fx, GROUND_Y);
-          state.flashRed = 0.6;
+          spawnFx(p, h.fx);
+          if (h.redFlash) state.flashRed = 0.6;
           state.shake = 14;
-          for (let i = 0; i < 3; i++) addSparks(fx + rand(-40, 40), GROUND_Y - rand(10, 60), 14, i % 2 ? "#ff3b2f" : "#ffb02e");
           if (inReach(p, h.reach, true)) {
             const m = state.monster;
-            hitMonster({ ...h, dir: Math.sign(m.x - p.x) || p.facing, crit: 0.4, kb: 90, sparkColor: "#ff3b2f", sparkColor2: "#ffd23f" });
+            hitMonster({ kb: 90, ...h, dir: Math.sign(m.x - p.x) || p.facing });
           }
         }
       } else if (sk.t > 0.38) {
@@ -720,7 +700,7 @@
       return true;
     }
 
-    // ground skills are rooted, except the storm which carries Kan forward
+    // ground skills are rooted unless they drift forward
     p.vx = def.drift ? p.facing * def.drift : 0;
     p.x += p.vx * dt;
     if (sk.dashTo !== null && sk.t < 0.16) {
@@ -732,19 +712,15 @@
     if (def.hits) {
       while (sk.hitIdx < def.hits.length && k >= def.hits[sk.hitIdx].at) {
         const h = def.hits[sk.hitIdx++];
-        spawnHitVfx(p, h);
+        spawnFx(p, h.fx);
         if (inReach(p, h.reach, h.both)) {
           const m = state.monster;
-          hitMonster({
-            ...h, dir: h.both ? Math.sign(m.x - p.x) || p.facing : p.facing, crit: 0.22, kb: 50,
-            sparkColor: h.vfx === "sparks" ? "#e8fbff" : h.burn ? "#ff7a1a" : "#ffd23f",
-            sparkColor2: h.vfx === "sparks" ? "#ff9a3c" : "#ff6a2b",
-          });
+          hitMonster({ crit: 0.22, kb: 50, ...h, dir: h.both ? Math.sign(m.x - p.x) || p.facing : p.facing });
         }
       }
     }
 
-    if (def.shot && !sk.thrown && k >= def.throwAt) {
+    if (def.shot && !sk.thrown && k >= def.shot.at) {
       sk.thrown = true;
       state.shots.push({
         x: p.x + p.facing * 30, y: p.y - 62, dir: p.facing, dist: 0, out: true,
@@ -752,15 +728,13 @@
       });
     }
 
-    if (def.storm || def.loopFrames) {
-      // the storm surrounds Kan for the whole spin
-      if (!sk.stormed) {
-        sk.stormed = true;
-        addVfx("storm", p.x, GROUND_Y, { life: def.dur + 0.15, s0: 0.8, s1: 1.25, anchor: "bottom", flicker: true, follow: true });
-      }
+    if (def.aura && !sk.aura) {
+      // effect that surrounds the fighter for the whole cast
+      sk.aura = true;
+      spawnFx(p, [{ ...def.aura, life: def.dur + 0.15, follow: true, back: true }]);
     }
 
-    const holding = def.holdUntilCatch && state.shots.length > 0;
+    const holding = def.shot && state.shots.length > 0;   // wait to catch the thrown weapon
     if (k >= 1 && !holding) {
       p.skill = null;
       p.anim = "idle";
@@ -769,33 +743,22 @@
     return true;
   }
 
-  function spawnHitVfx(p, h) {
+  // Spawn effects described in character data (see characters/README.md).
+  function spawnFx(p, list) {
+    if (!list) return;
     const f = p.facing;
-    const cy = p.y - 60;
-    switch (h.vfx) {
-      case "bird":
-        addVfx("bird", p.x + f * 20, cy - 6, { vx: f * 520, life: 0.5, s0: 0.7, s1: 1.1, flip: f });
-        break;
-      case "bird2":
-        addVfx("bird", p.x + f * 10, cy - 26, { vx: f * 600, vy: 40, life: 0.5, s0: 0.8, s1: 1.25, flip: f, rot: 0.15 });
-        break;
-      case "naga":
-        addVfx("naga", p.x + f * 28, cy + 2, { life: 0.55, s0: 0.35, s1: 1.75, flip: f, anchor: "left", stretch: true, flicker: true });
-        break;
-      case "tiger":
-        addVfx("tiger", p.x + f * 30, cy, { vx: f * 380, life: 0.45, s0: 0.7, s1: 1.1, flip: f });
-        break;
-      case "tigerUp":
-        addVfx("tiger", p.x + f * 30, cy + 10, { vx: f * 160, vy: -360, life: 0.5, s0: 0.8, s1: 1.2, flip: f, rot: -0.7 * f });
-        break;
-      case "rocks":
-        addVfx("rocks", p.x + f * 46, GROUND_Y + 4, { life: 0.55, s0: 0.5, s1: 1.15, flip: f, anchor: "bottom" });
-        addShockwave(p.x + f * 46, GROUND_Y);
-        break;
-      case "sparks":
-        addSparks(p.x + rand(-50, 50), cy + rand(-10, 20), 14, "#e8fbff");
-        addSparks(p.x + rand(-50, 50), cy + rand(-10, 20), 8, "#ff9a3c");
-        break;
+    for (const e of list) {
+      const x = p.x + f * (e.dx || 0);
+      const y = (e.at === "ground" ? GROUND_Y + 4 : p.y - 60) + (e.dy || 0);
+      if (e.key) {
+        addVfx(e.key, x, y, {
+          vx: f * (e.vx || 0), vy: e.vy || 0, life: e.life || 0.5,
+          s0: e.s0 ?? 1, s1: e.s1 ?? 1, rot: (e.rot || 0) * f, flip: f,
+          anchor: e.anchor || "center", stretch: !!e.stretch, follow: !!e.follow, back: !!e.back,
+        });
+      }
+      if (e.shockwave) addShockwave(x, GROUND_Y);
+      for (const [n, color] of e.sparks || []) addSparks(x + rand(-40, 40), y - rand(0, 50), n, color);
     }
   }
 
@@ -834,7 +797,7 @@
       const m = state.monster;
       if (!s.hit && m && m.state !== "dead" && Math.abs(m.x - s.x) < 42) {
         s.hit = true;
-        hitMonster({ dmg: s.def.dmg, dir: s.dir, power: 1, crit: 0.25, kb: 40, sparkColor: "#7ff6ff", sparkColor2: "#ffd23f" });
+        hitMonster({ power: 1, crit: 0.25, kb: 40, ...s.def, dir: s.dir });
       }
     }
     state.shots = state.shots.filter((s) => !s.done);
@@ -844,7 +807,7 @@
   // scale/fade tweening on top; keys without a sheet fall back to the still image.
   function drawVfx(camX, layer) {
     for (const v of state.vfx) {
-      if ((v.key === "storm") !== (layer === "back")) continue;
+      if (!!v.back !== (layer === "back")) continue;
       const anim = M.vfxAnim[v.key];
       const img = images[anim ? anim.image : M.vfx[v.key]];
       if (!img) continue;
@@ -877,8 +840,8 @@
   }
 
   function drawShots(camX) {
-    const img = images[M.vfx.chakra];
     for (const s of state.shots) {
+      const img = images[M.vfx[s.def.fx]];
       ctx.save();
       ctx.translate(Math.round(s.x - camX), Math.round(s.y));
       ctx.rotate(s.rot * s.dir);
@@ -1144,15 +1107,16 @@
 
   function drawPlayer(camX) {
     const p = state.player;
-    const a = M.player.anims[p.anim];
+    const a = P_ANIMS[p.anim];
     let frame;
     if (p.skill) {
       frame = skillFrame(p.skill);
     } else if (p.anim === "jump") {
       // map air time onto the jump frames: rise, peak, fall
-      // frames 2..6 of the clip are the airborne poses: rise, tuck, fall
+      // airFrames [first, last] are the airborne poses of the clip: rise, tuck, fall
       const airT = (2 * -JUMP_V) / GRAVITY;
-      frame = 2 + Math.floor(clamp(p.t / airT, 0, 0.999) * 5);
+      const [f0, f1] = a.airFrames || [0, a.frames - 1];
+      frame = f0 + Math.floor(clamp(p.t / airT, 0, 0.999) * (f1 - f0 + 1));
     } else if (a.loop) {
       frame = Math.floor(p.t * a.fps) % a.frames;
     } else if (a.playFor) {
@@ -1171,12 +1135,12 @@
     p.ghosts = p.ghosts.filter((g) => state.time - g.born < 0.16);
     for (const g of p.ghosts) {
       const age = (state.time - g.born) / 0.16;
-      drawFrame(M.player.anims[g.anim], g.frame, g.x - camX, g.y, g.facing, M.player.scale, 0.35 * (1 - age));
+      drawFrame(P_ANIMS[g.anim], g.frame, g.x - camX, g.y, g.facing, P_SCALE, 0.35 * (1 - age));
     }
     drawShadow(p.x - camX, GROUND_Y, 26 - Math.min(14, (GROUND_Y - p.y) / 8));
     const blink = p.invulnT > 0 && Math.floor(p.invulnT * 20) % 2 === 0 ? 0.45 : 1;
     const alpha = p.hp <= 0 ? 0.6 : blink;
-    drawFrame(a, frame, p.x - camX, p.y, p.facing, M.player.scale, alpha, p.hurtT > 0 ? 0.6 : 0);
+    drawFrame(a, frame, p.x - camX, p.y, p.facing, P_SCALE, alpha, p.hurtT > 0 ? 0.6 : 0);
   }
 
   function drawMonster(camX) {
@@ -1346,7 +1310,7 @@
   function drawSlash(camX) {
     const p = state.player;
     if (p.combo < 0) return;
-    const a = M.player.anims[p.anim];
+    const a = P_ANIMS[p.anim];
     const k = clamp(p.t / a.duration, 0, 1);
     const start = a.playFor * 0.25;            // swing begins after the wind-up frame
     const strike = a.playFor;                  // trail completes on the strike frame
@@ -1422,10 +1386,11 @@
   function drawHud() {
     const p = state.player;
     // portrait frame
-    const pimg = images[M.portrait];
+    const pimg = images[PORTRAIT];
     ctx.fillStyle = "#120d1c";
     ctx.fillRect(8, 8, 44, 44);
-    ctx.drawImage(pimg, M.portraitCrop.x, M.portraitCrop.y, M.portraitCrop.w, M.portraitCrop.h, 10, 10, 40, 40);
+    const pc = CH.portrait.crop;
+    ctx.drawImage(pimg, pc.x, pc.y, pc.w, pc.h, 10, 10, 40, 40);
     ctx.strokeStyle = "#ffd23f";
     ctx.lineWidth = 2;
     ctx.strokeRect(9, 9, 42, 42);
@@ -1434,7 +1399,7 @@
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#f3e9d2";
-    ctx.fillText("KAN KRIANGKRAI", 58, 20);
+    ctx.fillText(CH.hudName, 58, 20);
 
     const bx = 58, by = 25, bw = 150, bh = 10;
     ctx.fillStyle = "#120d1c";
@@ -1538,6 +1503,7 @@
   syncSkillButtons();
   const status = document.getElementById("status");
   loadImages()
+    .then(() => finalizeAnims())
     .then(() => document.fonts?.load("16px 'Silkscreen'").catch(() => {}))
     .then(() => {
       status.hidden = true;

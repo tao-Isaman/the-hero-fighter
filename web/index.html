@@ -155,10 +155,10 @@
   }
   #stick-base {
     position: absolute;
-    left: calc(var(--edge-l) + 70px);
-    top: calc(100% - var(--edge-b) - 70px);
-    width: 116px;
-    height: 116px;
+    left: calc(var(--edge-l) + 62px);
+    top: calc(100% - var(--edge-b) - 62px);
+    width: 100px;
+    height: 100px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: radial-gradient(circle, rgba(18, 13, 28, 0.15) 40%, rgba(18, 13, 28, 0.45));
@@ -171,8 +171,8 @@
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 50px;
-    height: 50px;
+    width: 42px;
+    height: 42px;
     transform: translate(-50%, -50%);
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #fff6dc, var(--paper) 45%, #b9a98d);
@@ -184,8 +184,8 @@
     position: absolute;
     right: var(--edge-r);
     bottom: var(--edge-b);
-    width: 270px;
-    height: 230px;
+    width: 222px;
+    height: 188px;
   }
   .skill {
     position: absolute;
@@ -212,9 +212,9 @@
   .skill.attack {
     --combo: 0;
     right: 6px;
-    bottom: 10px;
-    width: 96px;
-    height: 96px;
+    bottom: 8px;
+    width: 78px;
+    height: 78px;
     /* outer ring fills with gold as the 5-hit combo advances */
     background:
       radial-gradient(circle, #c8312a 0 56%, transparent 57%),
@@ -223,10 +223,10 @@
   }
   .skill.attack svg { width: 50%; height: 50%; }
   .skill.jump {
-    right: 196px;
-    bottom: 2px;
-    width: 58px;
-    height: 58px;
+    right: 166px;
+    bottom: 0;
+    width: 46px;
+    height: 46px;
     background: radial-gradient(circle at 50% 35%, #4a2f5c, var(--plum));
     box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--night);
   }
@@ -235,8 +235,8 @@
   /* three equipped skills in an arc around the attack button */
   .skill.sk {
     --cd: 0;
-    width: 62px;
-    height: 62px;
+    width: 48px;
+    height: 48px;
     background: var(--icon) center / 78% no-repeat, radial-gradient(circle at 50% 40%, #3b2550, var(--night));
     box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--night), 0 4px 12px rgba(0, 0, 0, 0.4);
     image-rendering: pixelated;
@@ -255,20 +255,20 @@
     z-index: 1;
     font-family: var(--font-pixel);
     font-weight: 400;
-    font-size: 16px;
+    font-size: 13px;
     color: var(--paper);
     text-shadow: 0 2px 0 var(--night);
   }
   .skill.sk span {
-    bottom: -16px;
+    bottom: -14px;
     white-space: nowrap;
     font-family: var(--font-display);
-    font-size: 10px;
+    font-size: 9px;
     letter-spacing: 0;
   }
-  .sk1 { right: 118px; bottom: 6px; }
-  .sk2 { right: 112px; bottom: 92px; }
-  .sk3 { right: 30px; bottom: 132px; }
+  .sk1 { right: 98px; bottom: 6px; }
+  .sk2 { right: 90px; bottom: 76px; }
+  .sk3 { right: 24px; bottom: 106px; }
 
   /* skill picker */
   #picker {
@@ -473,4 +473,11 @@
 </div>
 
 <script src="assets/manifest.js"></script>
+<!-- fighters: one file per character; ACTIVE_CHARACTER picks who you play -->
+<script src="characters/kan/character.js"></script>
+<!-- new-character-scripts -->
+<script>
+  // play a different fighter by opening the page with #<id>, e.g. index.html#kan
+  window.ACTIVE_CHARACTER = (location.hash.slice(1) in (window.CHARACTERS || {})) ? location.hash.slice(1) : "kan";
+</script>
 <script src="game.js"></script>
