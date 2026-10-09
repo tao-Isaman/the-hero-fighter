@@ -55,10 +55,16 @@ window.CHARACTERS.leklai = {
   skills: {
     blink: {
       name: "ก้าวพริบตา", desc: "วาร์ปไปข้างหลังศัตรูแล้วต่อย 1 ครั้ง", cd: 6, dur: 0.45,
-      frames: [0, 0.3, 0.55], icon: "wind",
-      blink: { at: 0.12, behind: 62, range: 430, fx: [{ sparks: [[10, "#bfe9ff"], [6, "#ffffff"]] }] },
+      frames: [0, 0.3, 0.55], icon: "blinkrift",
+      blink: {
+        at: 0.12, behind: 62, range: 430,
+        fxOut: [{ key: "blink", at: "ground", anchor: "bottom", dy: 4, life: 0.4, s0: 0.75, s1: 1.05 },
+          { sparks: [[10, "#bfe9ff"], [6, "#ffffff"]] }],
+        fxIn: [{ key: "blinkrift", dx: -8, dy: -6, life: 0.35, s0: 0.6, s1: 1.1 },
+          { sparks: [[8, "#7fd8ff"], [6, "#ffffff"]] }],
+      },
       hits: [{ at: 0.55, dmg: [22, 30], reach: 108, power: 1, kb: 70, crit: 0.35, sparkColor: "#bfe9ff",
-        fx: [{ key: "fists", dx: 46, life: 0.22, s0: 0.8, s1: 1.05 }] }],
+        fx: [{ key: "blinkrift", dx: 44, dy: -4, life: 0.25, s0: 0.35, s1: 0.65 }, { sparks: [[10, "#bfe9ff"]] }] }],
     },
     magnet: {
       name: "พลังแม่เหล็ก", desc: "สนามแม่เหล็กดูดศัตรูเข้ามาหาตัว ไม่มีดาเมจ", cd: 9, dur: 1.7,

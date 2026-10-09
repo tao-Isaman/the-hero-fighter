@@ -8,7 +8,7 @@ import os
 A = "web/assets"
 VFX = ["bird", "naga", "chakra", "tiger", "rocks", "yama", "storm",
        "crack", "fists", "blades", "buffalo", "groundfire", "guard",
-       "magnet", "ramasun", "wind", "sunfire", "icespear"]
+       "magnet", "ramasun", "wind", "sunfire", "icespear", "blink", "blinkrift"]
 # animated effect sheets from tools/fetch_vfx.py: key -> (fps, loop)
 VFX_ANIM = {"bird": (16, True), "naga": (18, True), "tiger": (18, True),
             "rocks": (0, False), "yama": (0, False), "storm": (16, True),

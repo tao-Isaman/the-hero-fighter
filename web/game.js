@@ -650,11 +650,11 @@
         for (let i = 1; i <= 5; i++) {
           f.ghosts.push({ anim: f.anim, frame: 0, x: from + (to - from) * (i / 6), y: f.y, facing: f.facing, born: state.time - 0.02 * (6 - i) });
         }
-        if (def.blink.fx) { spawnFx(f, def.blink.fx); }
+        spawnFx(f, def.blink.fxOut || def.blink.fx);      // where he vanishes
         f.x = to;
         f.facing = Math.sign(o.x - f.x) || -side;
         sk.dashTo = null;
-        if (def.blink.fx) spawnFx(f, def.blink.fx);
+        spawnFx(f, def.blink.fxIn || def.blink.fx);       // where he reappears
         sfx.swing("fist", 2);
       }
     }
