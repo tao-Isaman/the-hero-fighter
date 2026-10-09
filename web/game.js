@@ -241,8 +241,13 @@
   }
 
   // ---------- popups (damage numbers) ----------
-  function addPopup(x, y, amount, crit) {
-    state.popups.push({ x, y, amount, crit, t: 0, life: crit ? 1.1 : 0.8, dx: rand(-14, 14) });
+  function addPopup(x, y, amount, crit, opts = {}) {
+    // stack numbers that land close together (multi-hit skills) so each one stays readable
+    const near = state.popups.filter((q) => q.t < 0.45 && !q.enemy && !opts.enemy && Math.abs(q.x - x) < 70).length;
+    state.popups.push({
+      x, y: y - near * (crit ? 30 : 22), amount, crit, t: 0, life: crit ? 1.1 : opts.skill ? 1.0 : 0.8,
+      dx: rand(-14, 14), skill: !!opts.skill, enemy: !!opts.enemy,
+    });
   }
 
   function addShockwave(x, y) {
@@ -508,8 +513,7 @@
           p.hurtT = 0.25;
           p.x += m.facing * 26;
           state.shake = 5;
-          addPopup(p.x, p.y - 110, dmg, false);
-          state.popups[state.popups.length - 1].enemy = true;
+          addPopup(p.x, p.y - 110, dmg, false, { enemy: true });
           if (p.hp <= 0) state.over = true;
         }
       }
@@ -525,7 +529,7 @@
   const SKILLS = {
     wing: {
       name: "หักปีกปักษา", desc: "ฟันซ้าย-ขวา 2 ครั้ง วิญญาณนกโฉบใส่", cd: 5, dur: 0.5,
-      frames: [0, 0.16, 0.5], icon: "bird",
+      frames: [0, 0.16, 0.5], icon: "bird", assist: 110,
       hits: [
         { at: 0.2, dmg: [16, 22], reach: 155, power: 1, vfx: "bird" },
         { at: 0.55, dmg: [18, 25], reach: 165, power: 1, vfx: "bird2" },
@@ -543,7 +547,7 @@
     },
     tiger: {
       name: "พยัคฆ์ล้มสิงขร", desc: "แทงแล้วฟาดเสยขึ้น ศัตรูล้ม", cd: 8, dur: 0.62,
-      frames: [0, 0.3, 0.52], icon: "tiger",
+      frames: [0, 0.3, 0.52], icon: "tiger", assist: 100,
       hits: [
         { at: 0.12, dmg: [14, 18], reach: 145, power: 1, vfx: "tiger" },
         { at: 0.56, dmg: [22, 30], reach: 135, power: 2, knockdown: 1.4, vfx: "tigerUp" },
@@ -551,8 +555,8 @@
     },
     quake: {
       name: "สะท้านบรรพต", desc: "กระแทกระยะประชิด ศัตรูมึนงง", cd: 7, dur: 0.48,
-      frames: [0, 0.2, 0.38], icon: "rocks",
-      hits: [{ at: 0.4, dmg: [18, 24], reach: 85, power: 1, stun: 2.2, vfx: "rocks" }],
+      frames: [0, 0.2, 0.38], icon: "rocks", assist: 70,
+      hits: [{ at: 0.4, dmg: [18, 24], reach: 105, power: 1, stun: 2.2, vfx: "rocks" }],
     },
     yama: {
       name: "พญายมข่มธรณี", desc: "ไม้ตาย กระโดดฟาดพื้น ระเบิดแดง ศัตรูล้ม", cd: 16, ult: true,
@@ -561,11 +565,11 @@
     },
     storm: {
       name: "อัคคีสาดแสง", desc: "ไม้ตาย หมุนตัวฟัน 3 ครั้ง พายุลมขาวฟ้า", cd: 15, ult: true, dur: 0.95,
-      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 120,
+      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 120, assist: 90,
       hits: [
-        { at: 0.25, dmg: [16, 22], reach: 120, both: true, power: 1, vfx: "sparks" },
-        { at: 0.52, dmg: [16, 22], reach: 120, both: true, power: 1, vfx: "sparks" },
-        { at: 0.8, dmg: [22, 30], reach: 125, both: true, power: 2, vfx: "sparks" },
+        { at: 0.25, dmg: [16, 22], reach: 140, both: true, power: 1, vfx: "sparks" },
+        { at: 0.52, dmg: [16, 22], reach: 140, both: true, power: 1, vfx: "sparks" },
+        { at: 0.8, dmg: [22, 30], reach: 145, both: true, power: 2, vfx: "sparks" },
       ],
     },
   };
@@ -597,7 +601,7 @@
     state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
     state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
     const hy = m.y - M.monster.hitHeight;
-    addPopup(m.x + rand(-10, 10), hy, dmg, crit);
+    addPopup(m.x + rand(-10, 10), hy, dmg, crit, { skill: true });
     addSparks(m.x - o.dir * 18, hy + 30, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
     if (o.power) addSparks(m.x - o.dir * 18, hy + 30, 8, o.sparkColor2 || "#ff6a2b");
     if (m.hp <= 0) {
@@ -640,7 +644,14 @@
     p.combo = -1;
     p.air = false;
     p.queued = false;
-    p.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false };
+    p.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false, dashTo: null };
+    // auto-target: turn toward a nearby monster, and melee skills dash in to reach it
+    const m = state.monster;
+    if (m && m.state !== "dead") {
+      const d = m.x - p.x;
+      if (Math.abs(d) < 380) p.facing = Math.sign(d) || p.facing;
+      if (def.assist && Math.abs(d) > def.assist && Math.abs(d) < def.assist + 200) p.skill.dashTo = m.x - p.facing * def.assist;
+    }
     p.anim = "sk_" + id;
     p.t = 0;
     p.vx = 0;
@@ -710,6 +721,10 @@
     // ground skills are rooted, except the storm which carries Kan forward
     p.vx = def.drift ? p.facing * def.drift : 0;
     p.x += p.vx * dt;
+    if (sk.dashTo !== null && sk.t < 0.16) {
+      p.x += (sk.dashTo - p.x) * Math.min(1, dt * 22);
+      if (Math.floor(sk.t * 60) % 2 === 0) addSparks(p.x - p.facing * 20, GROUND_Y - 6, 1, "#e9dcc0");
+    }
     const k = sk.t / def.dur;
 
     if (def.hits) {
@@ -1279,16 +1294,20 @@
         ctx.restore();
       } else {
         const y = Math.round(pp.y - k * 34);
+        // skill hits pop in a little larger and in orange so they read apart from combo hits
+        const pop = pp.skill ? (k < 0.1 ? 0.6 + (k / 0.1) * 0.6 : 1.2 - Math.min(0.2, (k - 0.1) * 0.8)) : 1;
         ctx.save();
         ctx.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
-        ctx.font = "16px 'Silkscreen', monospace";
+        ctx.translate(x, y);
+        ctx.scale(pop, pop);
+        ctx.font = (pp.skill ? "20px" : "16px") + " 'Silkscreen', monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = "#120d1c";
-        ctx.strokeText(pp.amount, x, y);
-        ctx.fillStyle = pp.enemy ? "#ff8a80" : "#ffffff";
-        ctx.fillText(pp.amount, x, y);
+        ctx.lineWidth = pp.skill ? 5 : 4;
+        ctx.strokeStyle = pp.skill ? "#3a1204" : "#120d1c";
+        ctx.strokeText(pp.amount, 0, 0);
+        ctx.fillStyle = pp.enemy ? "#ff8a80" : pp.skill ? "#ffb347" : "#ffffff";
+        ctx.fillText(pp.amount, 0, 0);
         ctx.restore();
       }
     }
@@ -1473,8 +1492,8 @@
     drawVfx(camX, "front");
     drawShots(camX);
     drawSparks(camX);
-    drawPopups(camX);
     drawBanner(camX);
+    drawPopups(camX);
     ctx.restore();
     drawScreenFlash();
     drawHud();
