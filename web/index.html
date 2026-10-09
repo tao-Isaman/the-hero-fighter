@@ -397,16 +397,12 @@
   .sel-col h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
   .sel-col h3 span { font-family: var(--font-pixel); font-size: 0.7rem; color: var(--muted); }
   .sel-col[data-side="p1"] h3 { color: var(--gold); }
-  .sel-col[data-side="p2"] h3 { color: var(--ember); }
   .sel-col .char-list { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
   .sel-col .char { padding: 8px 6px; font-size: 0.85rem; gap: 6px; line-height: 1.25; }
   .sel-col .char canvas { width: 64px; height: 64px; border-color: var(--dusk); }
   .sel-col[data-side="p1"] .char.on { border-color: var(--gold); }
   .sel-col[data-side="p1"] .char.on canvas { border-color: var(--gold); }
-  .sel-col[data-side="p2"] .char.on { border-color: var(--ember); background: #351a2a; }
-  .sel-col[data-side="p2"] .char canvas { transform: scaleX(-1); }
-  .sel-col[data-side="p2"] .char.on canvas { border-color: var(--ember); }
-  .sel-vs { align-self: center; font-family: var(--font-pixel); font-size: 1.6rem; color: var(--gold); text-shadow: 0 2px 0 var(--ember); }
+  .sel-cols.one { grid-template-columns: 1fr; }
   .sel-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
   .sel-back {
     font-family: var(--font-display); font-size: 1rem; padding: 8px 18px; border-radius: 999px;
@@ -415,7 +411,6 @@
   .sel-back[hidden] { display: none; }
   @media (max-width: 560px) {
     .sel-cols { grid-template-columns: 1fr; }
-    .sel-vs { justify-self: center; font-size: 1.1rem; }
   }
   @media (max-height: 480px) {
     #charsel { padding: 8px; }
@@ -568,17 +563,12 @@
 <div id="charsel" hidden>
   <div class="pick-panel sel-panel" role="dialog" aria-modal="true" aria-labelledby="char-title">
     <div class="pick-head">
-      <h2 id="char-title">เลือกนักสู้</h2>
-      <p class="pick-note">เลือกตัวของคุณ และคู่ต่อสู้ที่ AI จะควบคุม</p>
+      <h2 id="char-title">เลือกนักสู้ของคุณ</h2>
+      <p class="pick-note">คู่ต่อสู้และสกิลของ CPU จะสุ่มให้ทุกเกม</p>
     </div>
-    <div class="sel-cols">
+    <div class="sel-cols one">
       <section class="sel-col" data-side="p1" aria-label="ตัวละครของคุณ">
         <h3>คุณ <span>YOU</span></h3>
-        <ul class="char-list"></ul>
-      </section>
-      <div class="sel-vs" aria-hidden="true">VS</div>
-      <section class="sel-col" data-side="p2" aria-label="คู่ต่อสู้">
-        <h3>คู่ต่อสู้ <span>CPU</span></h3>
         <ul class="char-list"></ul>
       </section>
     </div>

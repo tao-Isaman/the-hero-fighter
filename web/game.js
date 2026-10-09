@@ -1223,7 +1223,7 @@
   const charsel = document.getElementById("charsel");
   let menuOpen = false;
   let matchLive = false;            // a fight is in progress (the menu can be closed back into it)
-  const pick = { p1: P1_ID, p2: P2_ID };
+  const pick = { p1: P1_ID };
 
   function portraitCanvas(id, size) {
     const c = window.CHARACTERS[id];
@@ -1242,7 +1242,7 @@
     return cv;
   }
   function renderMenu() {
-    for (const side of ["p1", "p2"]) {
+    for (const side of ["p1"]) {
       const list = charsel.querySelector(`[data-side="${side}"] .char-list`);
       list.textContent = "";
       for (const id of ROSTER) {
@@ -1268,7 +1268,6 @@
     keys.clear();
     pressed.clear();
     pick.p1 = P1_ID;
-    pick.p2 = P2_ID;
     renderMenu();
     charsel.hidden = false;
     charsel.querySelector(".sel-start").focus();
@@ -1283,12 +1282,14 @@
   }
   function startMatch() {
     P1_ID = pick.p1;
-    P2_ID = pick.p2;
+    // the CPU's fighter is random every match (someone other than you, when there is someone)
+    const others = ROSTER.filter((id) => id !== P1_ID);
+    P2_ID = others.length ? others[Math.floor(Math.random() * others.length)] : P1_ID;
     p1Kit = KITS[P1_ID];
     LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
     p1Loadout = [...draft.normals, draft.ult];
     try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(p1Loadout)); } catch (_) { /* ignore */ }
-    try { localStorage.setItem(MATCH_KEY, JSON.stringify({ p1: P1_ID, p2: P2_ID })); } catch (_) { /* ignore */ }
+    try { localStorage.setItem(MATCH_KEY, JSON.stringify({ p1: P1_ID })); } catch (_) { /* ignore */ }
     reset();
     syncSkillButtons();
     matchLive = true;
