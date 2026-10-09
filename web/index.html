@@ -346,6 +346,41 @@
     display: grid;
     place-items: center;
   }
+  #charsel {
+    position: fixed;
+    inset: 0;
+    z-index: 6;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgba(10, 6, 18, 0.82);
+  }
+  #charsel[hidden] { display: none; }
+  .char-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
+    gap: 10px;
+  }
+  .char {
+    width: 100%;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 12px 10px;
+    border-radius: 10px;
+    border: 2px solid var(--dusk);
+    background: var(--night);
+    color: var(--paper);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .char canvas { width: 96px; height: 96px; border: 2px solid var(--gold); image-rendering: pixelated; }
+  .char.on { border-color: var(--gold); background: #2a1c3a; }
+  .char:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
   .pick-done {
     justify-self: end;
     font-family: var(--font-display);
@@ -438,6 +473,7 @@
     </div>
     <div class="sys">
       <button data-act="restart" aria-label="เริ่มใหม่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
+      <button data-open-chars aria-label="เลือกตัวละคร"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
       <button data-open-picker aria-label="เลือกสกิล"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></button>
       <button id="fullscreen" aria-label="เต็มจอ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
@@ -451,6 +487,7 @@
   <li class="keys">กระโดดแล้วกด <kbd>J</kbd> คอมโบกลางอากาศ 3 จังหวะ ปิดท้ายด้วยฟาดดิ่งลงพื้น</li>
   <li class="keys"><kbd>U</kbd><kbd>I</kbd><kbd>O</kbd> ใช้สกิล 3 ช่อง</li>
   <li class="keys"><button class="open-skills" type="button" data-open-picker>เลือกสกิล (Tab)</button></li>
+  <li class="keys"><button class="open-skills" type="button" data-open-chars>เปลี่ยนตัวละคร</button></li>
   <li class="keys"><kbd>R</kbd> เริ่มใหม่</li>
   <li class="crit">พื้นแดง เลขเหลือง = คริติคอล</li>
 </ul>
@@ -466,6 +503,16 @@
   </div>
 </div>
 
+<div id="charsel" hidden>
+  <div class="pick-panel" role="dialog" aria-modal="true" aria-labelledby="char-title">
+    <div class="pick-head">
+      <h2 id="char-title">เลือกตัวละคร</h2>
+      <p class="pick-note">แตะเพื่อเปลี่ยน เกมจะเริ่มใหม่ด้วยตัวที่เลือก</p>
+    </div>
+    <ul class="char-list"></ul>
+  </div>
+</div>
+
 <div id="rotate" role="status">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
   <strong>หมุนจอเป็นแนวนอน</strong>
@@ -475,6 +522,7 @@
 <script src="assets/manifest.js"></script>
 <!-- fighters: one file per character; ACTIVE_CHARACTER picks who you play -->
 <script src="characters/kan/character.js"></script>
+<!-- khaoniao: enable once its sprites are in -->
 <!-- new-character-scripts -->
 <script>
   // play a different fighter by opening the page with #<id>, e.g. index.html#kan

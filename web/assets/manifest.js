@@ -10,7 +10,13 @@ window.MANIFEST = {
   "tiger": "assets/vfx_tiger.png",
   "rocks": "assets/vfx_rocks.png",
   "yama": "assets/vfx_yama.png",
-  "storm": "assets/vfx_storm.png"
+  "storm": "assets/vfx_storm.png",
+  "crack": "assets/vfx_crack.png",
+  "fists": "assets/vfx_fists.png",
+  "blades": "assets/vfx_blades.png",
+  "buffalo": "assets/vfx_buffalo.png",
+  "groundfire": "assets/vfx_groundfire.png",
+  "guard": "assets/vfx_guard.png"
  },
  "vfxAnim": {
   "bird": {
@@ -59,6 +65,30 @@ window.MANIFEST = {
    "loop": true,
    "frameW": 137,
    "frameH": 154,
+   "frames": 9
+  },
+  "buffalo": {
+   "image": "assets/vfx_buffalo_anim.png",
+   "fps": 18,
+   "loop": true,
+   "frameW": 135,
+   "frameH": 88,
+   "frames": 9
+  },
+  "groundfire": {
+   "image": "assets/vfx_groundfire_anim.png",
+   "fps": 14,
+   "loop": true,
+   "frameW": 64,
+   "frameH": 40,
+   "frames": 9
+  },
+  "fists": {
+   "image": "assets/vfx_fists_anim.png",
+   "fps": 24,
+   "loop": true,
+   "frameW": 125,
+   "frameH": 84,
    "frames": 9
   }
  },

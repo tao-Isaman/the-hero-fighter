@@ -255,6 +255,7 @@
       hp: M.monster.hp, maxHp: M.monster.hp,
       state: "walk", t: 0, cd: 1.2, flash: 0, hitStun: 0, alpha: 1,
       downT: 0, downMax: 0, stunT: 0,  // knocked down / dazed timers
+      airY: 0, avy: 0, landDown: 0,     // launched into the air (height above ground, velocity)
       bob: Math.random() * 6,
     };
   }
@@ -474,7 +475,7 @@
     state.shake = (crit ? 8 : 2.5) + power * 3;
     if (power === 2) addShockwave(atk.plunge ? p.x + p.facing * 30 : m.x, GROUND_Y);
 
-    const hy = m.y - M.monster.hitHeight;
+    const hy = m.y - (m.airY || 0) - M.monster.hitHeight;
     addPopup(m.x + rand(-10, 10), hy, dmg, crit);
     addSparks(m.x - p.facing * 18, hy + 30, (crit ? 18 : 9) + power * 8, crit || power ? "#ffd23f" : "#fff2c4");
     if (power) addSparks(m.x - p.facing * 18, hy + 30, power * 8, "#ff6a2b");
@@ -515,6 +516,19 @@
     m.vx *= Math.pow(0.0008, dt);
     m.x = clamp(m.x, 40, M.worldWidth - 40);
 
+    // launched: fly up, fall back, and crash down (knocked down if the launch said so)
+    if (m.airY > 0 || m.avy < 0) {
+      m.avy += GRAVITY * 0.75 * dt;
+      m.airY = Math.max(0, m.airY - m.avy * dt);
+      if (m.airY <= 0 && m.avy > 0) {
+        m.avy = 0;
+        state.shake = Math.max(state.shake, 4);
+        addShockwave(m.x, GROUND_Y);
+        if (m.landDown) { m.downT = m.landDown; m.downMax = m.landDown; m.landDown = 0; }
+      }
+      return;
+    }
+
     if (m.downT > 0) {
       m.downT -= dt;
       if (m.downT <= 0) { m.state = "walk"; m.cd = 0.9; }
@@ -539,7 +553,10 @@
         m.state = "strike";
         m.t = 0;
         const reach = Math.abs(p.x - m.x);
-        if (reach < 95 && p.invulnT <= 0 && p.hp > 0 && p.y > GROUND_Y - 60) {
+        const sk = p.skill;
+        if (reach < 95 && p.hp > 0 && sk && sk.def.counter && !sk.countering) {
+          triggerCounter(p, m);
+        } else if (reach < 95 && p.invulnT <= 0 && p.hp > 0 && p.y > GROUND_Y - 60) {
           const dmg = randInt(6, 10);
           p.hp = Math.max(0, p.hp - dmg);
           p.invulnT = 0.7;
@@ -579,14 +596,22 @@
     m.hitStun = Math.max(m.hitStun, o.power === 2 ? 0.5 : 0.3);
     m.vx = o.dir * (o.kb ?? 60) * (crit ? 1.4 : 1) * (o.power === 2 ? 3 : 1.5);
     if (m.state === "windup") { m.state = "walk"; m.cd = 1.1; }
-    if (o.knockdown && m.downT <= 0) { m.downT = o.knockdown; m.downMax = o.knockdown; m.stunT = 0; }
+    if (o.launch) {
+      m.avy = -o.launch;
+      m.airY = Math.max(m.airY, 2);
+      m.landDown = o.landDown || 1.2;
+      m.downT = 0;
+    } else if (m.airY > 0) {
+      m.avy = Math.min(m.avy, -140);       // juggle: each air hit keeps it up a little longer
+    }
+    if (o.knockdown && m.downT <= 0 && m.airY <= 0) { m.downT = o.knockdown; m.downMax = o.knockdown; m.stunT = 0; }
     if (o.stun) m.stunT = o.stun;
 
     state.comboCount += 1;
     state.comboTimer = 1.6;
     state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
     state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
-    const hy = m.y - M.monster.hitHeight;
+    const hy = m.y - (m.airY || 0) - M.monster.hitHeight;
     addPopup(m.x + rand(-10, 10), hy, dmg, crit, { skill: true });
     addSparks(m.x - o.dir * 18, hy + 30, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
     if (o.power) addSparks(m.x - o.dir * 18, hy + 30, 8, o.sparkColor2 || "#ff6a2b");
@@ -630,7 +655,7 @@
     p.combo = -1;
     p.air = false;
     p.queued = false;
-    p.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false, dashTo: null };
+    p.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false, dashTo: null, ct: 0, trailT: 0 };
     // auto-target: turn toward a nearby monster, and melee skills dash in to reach it
     const m = state.monster;
     if (m && m.state !== "dead") {
@@ -649,12 +674,18 @@
       p.onGround = false;
       p.vx = p.facing * 90;
     }
+    if (def.travel) {
+      p.vy = def.travel.vy;
+      p.onGround = false;
+    }
   }
 
   function skillFrame(sk) {
     const def = sk.def;
     if (def.leap) return sk.phase;              // 0 rising, 1 falling strike, 2 landed
-    const k = sk.t / def.dur;
+    if (def.counter) return sk.countering ? (sk.ct < def.counter.hitAt ? 1 : 2) : 0;   // guard, then strike back
+    if (sk.t < (def.charge || 0)) return 0;     // charging holds the first frame
+    const k = (sk.t - (def.charge || 0)) / def.dur;
     if (def.loopFrames) return Math.floor(k * 9) % 3;   // spin: cycle the 3 frames fast
     let f = 0;
     for (let i = 0; i < 3; i++) if (k >= def.frames[i]) f = i;
@@ -700,14 +731,60 @@
       return true;
     }
 
-    // ground skills are rooted unless they drift forward
-    p.vx = def.drift ? p.facing * def.drift : 0;
+    // counter stance: hold the guard; a blocked blow triggers the counter strike
+    if (def.counter) {
+      const c = def.counter;
+      p.vx = 0;
+      p.invulnT = Math.max(p.invulnT, 0.05);
+      if (!sk.countering) {
+        if (!sk.aura && c.aura) { sk.aura = true; spawnFx(p, [{ ...c.aura, life: c.window, follow: true }]); }
+        if (sk.t >= c.window) endSkill(p);
+        return true;
+      }
+      sk.ct += dt;
+      if (!sk.counterHit && sk.ct >= c.hitAt) {
+        sk.counterHit = true;
+        spawnFx(p, c.hit.fx);
+        if (inReach(p, c.hit.reach, true)) {
+          const m = state.monster;
+          hitMonster({ ...c.hit, crit: 1, dir: Math.sign(m.x - p.x) || p.facing });   // counters always crit
+        }
+      }
+      if (sk.ct >= c.dur) endSkill(p);
+      return true;
+    }
+
+    // charge-up: hold the first frame, gather sparks, then run the rest of the skill
+    const t0 = def.charge || 0;
+    if (sk.t < t0) {
+      p.vx = 0;
+      if (!sk.charged) { sk.charged = true; spawnFx(p, def.chargeFx); }
+      if (Math.random() < 0.7) {
+        const a = rand(0, Math.PI * 2);
+        addSparks(p.x + p.facing * 16 + Math.cos(a) * 30, p.y - 64 + Math.sin(a) * 30, 1, def.chargeColor || "#ffb02e");
+      }
+      state.shake = Math.max(state.shake, 1 + (sk.t / t0) * 2);
+      return true;
+    }
+
+    // ground skills are rooted unless they drift or travel forward
+    p.vx = def.travel && !p.onGround ? p.facing * def.travel.vx : def.drift ? p.facing * def.drift : 0;
     p.x += p.vx * dt;
     if (sk.dashTo !== null && sk.t < 0.16) {
       p.x += (sk.dashTo - p.x) * Math.min(1, dt * 22);
       if (Math.floor(sk.t * 60) % 2 === 0) addSparks(p.x - p.facing * 20, GROUND_Y - 6, 1, "#e9dcc0");
     }
-    const k = sk.t / def.dur;
+    // airborne during a skill (flying knee, rising uppercut): fall back down
+    if (!p.onGround) {
+      p.vy += GRAVITY * (def.gravity ?? 1) * dt;
+      p.y += p.vy * dt;
+      if (p.y >= GROUND_Y) { p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.airUsed = false; }
+      if (def.trail) {
+        sk.trailT -= dt;
+        if (sk.trailT <= 0) { sk.trailT = def.trail.every; spawnFx(p, def.trail.fx); }
+      }
+    }
+    const k = (sk.t - t0) / def.dur;
 
     if (def.hits) {
       while (sk.hitIdx < def.hits.length && k >= def.hits[sk.hitIdx].at) {
@@ -717,6 +794,7 @@
           const m = state.monster;
           hitMonster({ crit: 0.22, kb: 50, ...h, dir: h.both ? Math.sign(m.x - p.x) || p.facing : p.facing });
         }
+        if (h.rise) { p.vy = -h.rise; p.onGround = false; }   // follow a launched enemy up
       }
     }
 
@@ -735,12 +813,34 @@
     }
 
     const holding = def.shot && state.shots.length > 0;   // wait to catch the thrown weapon
-    if (k >= 1 && !holding) {
-      p.skill = null;
-      p.anim = "idle";
-      p.t = 0;
-    }
+    const flying = def.travel && !p.onGround;              // a flying knee ends on landing
+    if (k >= 1 && !holding && !flying) endSkill(p);
     return true;
+  }
+
+  function endSkill(p) {
+    p.skill = null;
+    p.t = 0;
+    if (p.onGround) {
+      p.anim = "idle";
+    } else {
+      p.anim = "jump";
+      p.t = ((2 * -JUMP_V) / GRAVITY) * 0.7;
+    }
+  }
+
+  function triggerCounter(p, m) {
+    const sk = p.skill;
+    sk.countering = true;
+    sk.ct = 0;
+    p.facing = Math.sign(m.x - p.x) || p.facing;
+    m.state = "walk";
+    m.cd = 1.6;
+    m.hitStun = 0.45;
+    state.hitStop = 0.14;
+    state.shake = 6;
+    addPopup(p.x, p.y - 120, "COUNTER", false, { skill: true });
+    addSparks(p.x + p.facing * 24, p.y - 70, 18, "#ffd23f");
   }
 
   // Spawn effects described in character data (see characters/README.md).
@@ -755,6 +855,7 @@
           vx: f * (e.vx || 0), vy: e.vy || 0, life: e.life || 0.5,
           s0: e.s0 ?? 1, s1: e.s1 ?? 1, rot: (e.rot || 0) * f, flip: f,
           anchor: e.anchor || "center", stretch: !!e.stretch, follow: !!e.follow, back: !!e.back,
+          opacity: e.opacity ?? 1,
         });
       }
       if (e.shockwave) addShockwave(x, GROUND_Y);
@@ -820,6 +921,7 @@
       // effects appear at once (they spawn on the impact freeze), then fade out
       let alpha = k < 0.1 ? 0.6 + (k / 0.1) * 0.4 : k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
       if (v.flicker && !anim) alpha *= 0.82 + 0.18 * Math.sin(v.t * 60);
+      alpha *= v.opacity ?? 1;
       ctx.save();
       ctx.translate(Math.round(v.x - camX), Math.round(v.y));
       if (v.rot) ctx.rotate(v.rot);
@@ -1041,6 +1143,56 @@
     pressed.clear();
     canvas.focus();
   }
+  // character select: switching restarts the page with #<id>
+  const charsel = document.getElementById("charsel");
+  function openChars() {
+    if (!charsel) return;
+    keys.clear();
+    pickerOpen = true;              // pauses the game like the skill picker
+    const list = charsel.querySelector(".char-list");
+    list.textContent = "";
+    for (const [id, c] of Object.entries(window.CHARACTERS)) {
+      const li = document.createElement("li");
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "char" + (id === CH_ID ? " on" : "");
+      const cv = document.createElement("canvas");
+      cv.width = 48;
+      cv.height = 48;
+      const img = new Image();
+      img.onload = () => {
+        const cc = cv.getContext("2d");
+        cc.imageSmoothingEnabled = false;
+        const pc = c.portrait.crop;
+        cc.drawImage(img, pc.x, pc.y, pc.w, pc.h, 0, 0, 48, 48);
+      };
+      img.src = `characters/${id}/${c.portrait.image}`;
+      const name = document.createElement("span");
+      name.textContent = c.name;
+      b.append(cv, name);
+      b.addEventListener("click", () => {
+        if (id === CH_ID) { closeChars(); return; }
+        location.hash = id;
+        location.reload();
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+    }
+    charsel.hidden = false;
+  }
+  function closeChars() {
+    charsel.hidden = true;
+    pickerOpen = false;
+    keys.clear();
+    pressed.clear();
+    canvas.focus();
+  }
+  if (charsel) {
+    for (const b of document.querySelectorAll("[data-open-chars]")) b.addEventListener("click", openChars);
+    charsel.addEventListener("click", (e) => { if (e.target === charsel) closeChars(); });
+    addEventListener("keydown", (e) => { if (e.code === "Escape" && !charsel.hidden) closeChars(); });
+  }
+
   if (picker) {
     picker.querySelector(".pick-done").addEventListener("click", () => closePicker(true));
     // tapping the dark area around the panel closes it without changes
@@ -1178,6 +1330,7 @@
     }
     if (m.hitStun > 0) ox += Math.sin(m.hitStun * 60) * 3;
     // knocked down: tip over backwards, lie still, then get up again
+    oy -= m.airY || 0;
     let rot = 0;
     if (m.downT > 0) {
       const gone = m.downMax - m.downT;
@@ -1213,7 +1366,7 @@
     if (m.state !== "dead") {
       // HP bar above the monster
       const bw = 70, bh = 6;
-      const bx = Math.round(m.x - camX - bw / 2), by = Math.round(m.y - M.monster.barHeight);
+      const bx = Math.round(m.x - camX - bw / 2), by = Math.round(m.y - (m.airY || 0) - M.monster.barHeight);
       ctx.fillStyle = "#120d1c";
       ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
       ctx.fillStyle = "#3a2240";
@@ -1228,7 +1381,7 @@
   function drawStunStars(camX) {
     const m = state.monster;
     if (!m || m.stunT <= 0) return;
-    const cx = m.x - camX, cy = m.y - M.monster.barHeight + 18;
+    const cx = m.x - camX, cy = m.y - (m.airY || 0) - M.monster.barHeight + 18;
     for (let i = 0; i < 3; i++) {
       const a = state.time * 5 + (i * Math.PI * 2) / 3;
       const x = cx + Math.cos(a) * 24, y = cy + Math.sin(a) * 6;
@@ -1335,6 +1488,32 @@
     if (fade <= 0) return;
 
     const sw = curAttack(p);
+    if (sw.punch) {
+      // punches: short speed lines shooting out from the fist instead of a swing arc
+      const cols = ["rgba(255,248,225,0.9)", "rgba(255,214,120,0.95)", "rgba(255,150,60,1)"];
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.strokeStyle = cols[sw.power];
+      ctx.lineCap = "round";
+      const reachPx = 34 + sw.power * 16;
+      const x0 = p.x - camX + p.facing * 18, len = reachPx * sweep;
+      const lift = p.air ? 40 : 62;
+      [[-8, 2], [0, 3 + sw.power], [8, 2]].forEach(([dy, w], i) => {
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(Math.round(x0 + p.facing * i * 4), Math.round(p.y - lift + dy));
+        ctx.lineTo(Math.round(x0 + p.facing * (len - i * 6)), Math.round(p.y - lift + dy));
+        ctx.stroke();
+      });
+      if (sweep >= 1) {
+        ctx.fillStyle = cols[sw.power];
+        ctx.beginPath();
+        ctx.arc(Math.round(x0 + p.facing * len), Math.round(p.y - lift), 5 + sw.power * 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
     const st = SLASH_STYLE[sw.plunge ? 1 : sw.power];
     const cx = p.x - camX + p.facing * 22;
     const cy = p.y - (p.air ? 40 : 58);
