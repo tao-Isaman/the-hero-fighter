@@ -11,11 +11,14 @@ ANIMS = {
     "idle": dict(fps=8, loop=True),
     "walk": dict(fps=12, loop=True),
     "jump": dict(fps=12, loop=False),
-    "attack1": dict(duration=0.42, hitAt=0.55),
-    "attack2": dict(duration=0.42, hitAt=0.45),
-    "attack3": dict(duration=0.42, hitAt=0.36),
-    "attack4": dict(duration=0.40, hitAt=0.26),
-    "attack5": dict(duration=0.70, hitAt=0.56),
+    # 5-hit combo, 4 frames each (wind-up, swing, swing, strike) = 20 frames.
+    # Frames play over the first `playFor` of the clip, then the strike frame holds.
+    # hitAt lands on the frame where the stick crosses in front of Kan.
+    "attack1": dict(duration=0.30, playFor=0.7, hitAt=0.7 * 0.75),
+    "attack2": dict(duration=0.30, playFor=0.7, hitAt=0.7 * 0.5),
+    "attack3": dict(duration=0.36, playFor=0.7, hitAt=0.7 * 0.75),
+    "attack4": dict(duration=0.36, playFor=0.7, hitAt=0.7 * 0.5),
+    "attack5": dict(duration=0.50, playFor=0.7, hitAt=0.7 * 0.75),
 }
 
 anims = {}
@@ -39,7 +42,7 @@ manifest = {
     "background": "assets/bg_village.png",
     "portrait": "assets/kan_portrait.png",
     "portraitCrop": {"x": 92, "y": 50, "w": 120, "h": 120},
-    "player": {"scale": 0.62, "anims": anims, "reach": [86, 92, 82, 112, 104]},
+    "player": {"scale": 0.62, "anims": anims, "reach": [96, 90, 104, 98, 118]},
     "monster": {"image": "assets/monster_yak.png", "anchorX": 84, "anchorY": 160, "scale": 0.85,
                 "artFacing": 1, "hp": 320, "speed": 46, "hitHeight": 115, "barHeight": 150},
 }

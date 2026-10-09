@@ -12,7 +12,16 @@
   const COMBO_WINDOW = 0.38;        // seconds after an attack ends to chain the next
   const CRIT_CHANCE = [0.15, 0.15, 0.18, 0.2, 0.35];
   const COMBO_DAMAGE = [[9, 13], [10, 14], [12, 16], [14, 19], [24, 32]];
-  const COMBO_KNOCKBACK = [30, 34, 40, 50, 140];
+  const COMBO_KNOCKBACK = [30, 34, 44, 52, 140];
+  // per hit of the 5-hit combo: swing direction on screen when facing right
+  // (+1 = left to right, -1 = right to left) and how heavy the effects are
+  const SWINGS = [
+    { dir: 1, power: 0 },
+    { dir: -1, power: 0 },
+    { dir: 1, power: 1 },
+    { dir: -1, power: 1 },
+    { dir: 1, power: 2 },   // spinning finisher
+  ];
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -77,6 +86,11 @@
     return tintCv;
   }
 
+  function attackFrame(a, t) {
+    const k = clamp(t / a.duration, 0, 0.999);
+    return Math.min(a.frames - 1, Math.floor((k / a.playFor) * a.frames));
+  }
+
   function drawFrame(anim, frame, x, y, facing, scale, alpha = 1, flash = 0) {
     const img = images[anim.image];
     const fw = anim.frameW, fh = anim.frameH;
@@ -133,7 +147,7 @@
       player: newPlayer(),
       monster: newMonster(470),
       camX: 0,
-      popups: [], sparks: [],
+      popups: [], sparks: [], waves: [],
       shake: 0, hitStop: 0,
       comboCount: 0, comboTimer: 0,
       kills: 0, respawnT: 0, over: false, lastCombo: -1,
@@ -143,6 +157,10 @@
   // ---------- popups (damage numbers) ----------
   function addPopup(x, y, amount, crit) {
     state.popups.push({ x, y, amount, crit, t: 0, life: crit ? 1.1 : 0.8, dx: rand(-14, 14) });
+  }
+
+  function addShockwave(x, y) {
+    state.waves.push({ x, y, t: 0, life: 0.45 });
   }
 
   function addSparks(x, y, n, color) {
@@ -262,17 +280,21 @@
     m.hp = Math.max(0, m.hp - dmg);
     m.flash = 0.75;
     m.hitStun = p.combo === 4 ? 0.55 : 0.28;
-    m.vx = p.facing * COMBO_KNOCKBACK[p.combo] * (crit ? 1.6 : 1) * 4;
+    // light pushback keeps the monster in reach until the finisher launches it
+    m.vx = p.facing * COMBO_KNOCKBACK[p.combo] * (crit ? 1.4 : 1) * (p.combo === 4 ? 4 : 1.5);
     if (m.state === "windup") { m.state = "walk"; m.cd = 1.1; }
 
     state.comboCount += 1;
     state.comboTimer = 1.6;
-    state.hitStop = crit ? 0.12 : p.combo === 4 ? 0.09 : 0.05;
-    state.shake = crit ? 9 : p.combo === 4 ? 6 : 2.5;
+    const power = SWINGS[p.combo].power;
+    state.hitStop = (crit ? 0.12 : 0.05) + power * 0.03;
+    state.shake = (crit ? 8 : 2.5) + power * 3;
+    if (power === 2) addShockwave(m.x, GROUND_Y);
 
     const hy = m.y - M.monster.hitHeight;
     addPopup(m.x + rand(-10, 10), hy, dmg, crit);
-    addSparks(m.x - p.facing * 18, hy + 30, crit ? 18 : 9, crit ? "#ffd23f" : "#fff2c4");
+    addSparks(m.x - p.facing * 18, hy + 30, (crit ? 18 : 9) + power * 8, crit || power ? "#ffd23f" : "#fff2c4");
+    if (power) addSparks(m.x - p.facing * 18, hy + 30, power * 8, "#ff6a2b");
 
     if (m.hp <= 0) {
       m.state = "dead";
@@ -352,6 +374,8 @@
 
     if (state.hitStop > 0) {
       state.hitStop -= dt;
+      // keep combo input alive through the impact freeze
+      if (pressed.has("attack") && state.player.combo >= 0 && state.player.combo < 4) state.player.queued = true;
       pressed.clear();
       return;
     }
@@ -368,6 +392,8 @@
       s.t += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 900 * dt;
     }
     state.sparks = state.sparks.filter((s) => s.t < s.life);
+    for (const w of state.waves) w.t += dt;
+    state.waves = state.waves.filter((w) => w.t < w.life);
     state.shake = Math.max(0, state.shake - dt * 30);
 
     const target = state.player.x - W * 0.4;
@@ -415,6 +441,8 @@
       frame = 2 + Math.floor(clamp(p.t / airT, 0, 0.999) * 5);
     } else if (a.loop) {
       frame = Math.floor(p.t * a.fps) % a.frames;
+    } else if (a.playFor) {
+      frame = attackFrame(a, p.t);
     } else {
       frame = Math.floor(clamp(p.t / a.duration, 0, 0.999) * a.frames);
     }
@@ -547,6 +575,80 @@
     }
   }
 
+  // Swing trail: a flattened crescent in front of Kan that sweeps with the stick.
+  // Frames: 0 wind-up (no trail), 1-2 swing, 3 strike, then the trail fades.
+  const SLASH_STYLE = [
+    { r: 46, w: 7, core: "rgba(255,248,225,0.95)", glow: "rgba(255,240,200,0.35)" },
+    { r: 56, w: 11, core: "rgba(255,226,120,0.95)", glow: "rgba(255,120,40,0.45)" },
+    { r: 66, w: 15, core: "rgba(255,236,140,1)", glow: "rgba(255,60,30,0.55)" },
+  ];
+
+  function drawSlash(camX) {
+    const p = state.player;
+    if (p.combo < 0) return;
+    const a = M.player.anims[p.anim];
+    const k = clamp(p.t / a.duration, 0, 1);
+    const start = a.playFor * 0.25;            // swing begins after the wind-up frame
+    const strike = a.playFor;                  // trail completes on the strike frame
+    if (k < start) return;
+    const sweep = clamp((k - start) / (strike - start), 0, 1);
+    const fade = k > strike ? 1 - (k - strike) / (1 - strike) : 1;
+    if (fade <= 0) return;
+
+    const sw = SWINGS[p.combo];
+    const st = SLASH_STYLE[sw.power];
+    const cx = p.x - camX + p.facing * 22;
+    const cy = p.y - 58;
+    // left-to-right swings arc over the top, right-to-left ones under the bottom
+    let a0, a1;
+    if (sw.power === 2) { a0 = Math.PI; a1 = Math.PI + Math.PI * 2 * sweep; }
+    else if (sw.dir === 1) { a0 = Math.PI * 1.05; a1 = a0 + Math.PI * 1.0 * sweep; }
+    else { a0 = -0.05; a1 = a0 + Math.PI * 1.0 * sweep; }
+    const tail = sw.power === 2 ? Math.PI * 1.3 : Math.PI * 0.75;
+    const from = Math.max(a0, a1 - tail);
+
+    ctx.save();
+    ctx.translate(Math.round(cx), Math.round(cy));
+    ctx.scale(p.facing, sw.power === 2 ? 0.55 : 0.42);
+    ctx.lineCap = "round";
+    ctx.globalAlpha = fade;
+    const steps = 10;
+    for (let i = 0; i < steps; i++) {
+      // thicker and brighter toward the leading edge
+      const u0 = from + ((a1 - from) * i) / steps;
+      const u1 = from + ((a1 - from) * (i + 1)) / steps;
+      const f = (i + 1) / steps;
+      ctx.beginPath();
+      ctx.arc(0, 0, st.r, u0, u1);
+      ctx.strokeStyle = st.glow;
+      ctx.lineWidth = st.w * f * 2.2;
+      ctx.stroke();
+      ctx.strokeStyle = st.core;
+      ctx.lineWidth = st.w * f;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawWaves(camX) {
+    for (const w of state.waves) {
+      const k = w.t / w.life;
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = "#ffd23f";
+      ctx.lineWidth = 4 * (1 - k) + 1;
+      ctx.beginPath();
+      ctx.ellipse(Math.round(w.x - camX), Math.round(w.y), 20 + k * 110, 6 + k * 18, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#ff6a2b";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(Math.round(w.x - camX), Math.round(w.y), 10 + k * 70, 3 + k * 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawSparks(camX) {
     for (const s of state.sparks) {
       ctx.globalAlpha = 1 - s.t / s.life;
@@ -641,6 +743,8 @@
     const m = state.monster;
     if (m && m.y < state.player.y) { drawMonster(camX); drawPlayer(camX); }
     else { drawPlayer(camX); drawMonster(camX); }
+    drawWaves(camX);
+    drawSlash(camX);
     drawSparks(camX);
     drawPopups(camX);
     ctx.restore();

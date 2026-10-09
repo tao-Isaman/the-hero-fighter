@@ -58,66 +58,71 @@ window.MANIFEST = {
    },
    "attack1": {
     "image": "assets/kan_attack1.png",
-    "frames": 9,
+    "frames": 4,
     "frameW": 224,
     "frameH": 224,
     "anchorX": 95,
     "anchorY": 220,
     "loop": false,
-    "duration": 0.42,
-    "hitAt": 0.55
+    "duration": 0.3,
+    "playFor": 0.7,
+    "hitAt": 0.5249999999999999
    },
    "attack2": {
     "image": "assets/kan_attack2.png",
-    "frames": 9,
+    "frames": 4,
     "frameW": 224,
     "frameH": 224,
     "anchorX": 95,
     "anchorY": 220,
     "loop": false,
-    "duration": 0.42,
-    "hitAt": 0.45
+    "duration": 0.3,
+    "playFor": 0.7,
+    "hitAt": 0.35
    },
    "attack3": {
     "image": "assets/kan_attack3.png",
-    "frames": 9,
+    "frames": 4,
     "frameW": 224,
     "frameH": 224,
     "anchorX": 95,
     "anchorY": 220,
     "loop": false,
-    "duration": 0.42,
-    "hitAt": 0.36
+    "duration": 0.36,
+    "playFor": 0.7,
+    "hitAt": 0.5249999999999999
    },
    "attack4": {
     "image": "assets/kan_attack4.png",
-    "frames": 9,
+    "frames": 4,
     "frameW": 224,
     "frameH": 224,
     "anchorX": 95,
     "anchorY": 220,
     "loop": false,
-    "duration": 0.4,
-    "hitAt": 0.26
+    "duration": 0.36,
+    "playFor": 0.7,
+    "hitAt": 0.35
    },
    "attack5": {
     "image": "assets/kan_attack5.png",
-    "frames": 13,
+    "frames": 4,
     "frameW": 224,
     "frameH": 224,
     "anchorX": 95,
     "anchorY": 220,
     "loop": false,
-    "duration": 0.7,
-    "hitAt": 0.56
+    "duration": 0.5,
+    "playFor": 0.7,
+    "hitAt": 0.5249999999999999
    }
   },
   "reach": [
-   86,
-   92,
-   82,
-   112,
-   104
+   96,
+   90,
+   104,
+   98,
+   118
   ]
  },
  "monster": {
