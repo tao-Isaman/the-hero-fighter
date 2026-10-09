@@ -195,6 +195,21 @@
   }
   const atkBtn = document.querySelector(".skill.attack");
 
+  // Sound on/off: the speaker button or M. The choice is remembered.
+  const soundBtns = document.querySelectorAll("[data-sound]");
+  function syncSound() {
+    const on = !(window.SFX && window.SFX.muted);
+    for (const b of soundBtns) { b.classList.toggle("off", !on); b.setAttribute("aria-pressed", String(on)); }
+  }
+  function toggleSound() {
+    if (!window.SFX) return;
+    window.SFX.setMuted(!window.SFX.muted);
+    syncSound();
+  }
+  for (const b of soundBtns) b.addEventListener("click", toggleSound);
+  addEventListener("keydown", (e) => { if (e.code === "KeyM" && !e.repeat) toggleSound(); });
+  syncSound();
+
   // ---------- helpers ----------
   const rand = (a, b) => a + Math.random() * (b - a);
   const randInt = (a, b) => Math.floor(rand(a, b + 1));
@@ -371,6 +386,7 @@
     attacker.comboTimer = 1.6;
     state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
     state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
+    sfx.hit(o.sfx || weaponOf(attacker, o), o.power || 0, crit);
     const hy = target.y - 112;
     addPopup(target.x + rand(-10, 10), hy, dmg, crit, { skill: !!o.skill, enemy: target.ctrl === "human" });
     addSparks(target.x - o.dir * 14, hy + 34, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
@@ -393,6 +409,7 @@
     state.slowmo = 1.2;
     state.overT = 0;
     state.shake = 12;
+    sfx.ko();
   }
 
   // is the opponent within reach in front of f (or on either side with both)?
@@ -406,7 +423,15 @@
   }
 
   // ---------- combos ----------
+  // ---------- sound ----------
+  const noop = () => {};
+  const sfx = window.SFX || { swing: noop, hit: noop, clang: noop, boom: noop, thud: noop, jump: noop, ult: noop, charge: noop, bell: noop, ko: noop };
+  // punches always sound like fists; everything else uses the character's weapon (see characters/README.md)
+  function weaponOf(f, o) { return o && o.punch ? "fist" : f.kit.c.sfx || "fist"; }
+
   function startAttack(f, idx) {
+    const atkDef = attacksOf(f)[idx];
+    sfx.swing(weaponOf(f, atkDef), atkDef.power || 0);
     f.combo = idx;
     f.anim = attacksOf(f)[idx].anim;
     f.t = 0;
@@ -478,6 +503,9 @@
     f.vx = 0;
     f.cooldowns[slot] = def.cd;
     showBanner(f, def);
+    if (def.ult) sfx.ult();
+    if (def.charge) sfx.charge(def.charge);
+    else if (!def.counter) sfx.swing(weaponOf(f, def), 1);
     if (def.ult) f.invulnT = Math.max(f.invulnT, 0.5);
     if (def.leap) {
       f.vy = -720;
@@ -536,6 +564,7 @@
           spawnFx(f, h.fx);
           if (h.redFlash) state.flashRed = 0.6;
           state.shake = 14;
+          sfx.boom(1.2);
           if (inReach(f, h.reach, true)) {
             const o = f.opp;
             hitFighter(o, { kb: 90, ...h, skill: true, dir: Math.sign(o.x - f.x) || f.facing }, f);
@@ -595,7 +624,7 @@
       f.y += f.vy * dt;
       if (f.y >= GROUND_Y) {
         f.y = GROUND_Y; f.vy = 0; f.onGround = true; f.airUsed = false;
-        if (def.travel) { sk.landedT = 0; state.shake = Math.max(state.shake, 3); addShockwave(f.x, GROUND_Y); }
+        if (def.travel) { sk.landedT = 0; state.shake = Math.max(state.shake, 3); addShockwave(f.x, GROUND_Y); sfx.thud(); }
       }
       if (def.trail) {
         sk.trailT -= dt;
@@ -662,6 +691,7 @@
     attacker.hitStun = Math.max(attacker.hitStun, 0.45);
     state.hitStop = 0.14;
     state.shake = 6;
+    sfx.clang();
     addPopup(f.x, f.y - 120, "COUNTER", false, { skill: true });
     addSparks(f.x + f.facing * 24, f.y - 70, 18, "#ffd23f");
   }
@@ -743,6 +773,7 @@
         f.airUsed = false;
         state.shake = Math.max(state.shake, 4);
         addShockwave(f.x, GROUND_Y);
+        sfx.thud();
         if (f.landDown) { f.downT = f.landDown; f.downMax = f.landDown; f.landDown = 0; }
       }
       f.anim = "idle";
@@ -800,6 +831,7 @@
             f.t = strikeT;
             state.shake = Math.max(state.shake, 5);
             addShockwave(f.x + f.facing * 30, GROUND_Y);
+            sfx.boom(0.6);
             resolveAttackHit(f);
           }
         }
@@ -827,6 +859,7 @@
       f.vx = dir * f.kit.c.walkSpeed * (dir === f.facing ? 1 : 0.75);
 
       if (input.pressed.has("jump") && f.onGround) {
+        sfx.jump();
         f.vy = f.kit.c.jumpVelocity;
         f.onGround = false;
         f.anim = "jump";
@@ -1133,7 +1166,9 @@
     }
 
     state.time += dt;
+    const wasReady = state.introT > 0.6;
     state.introT = Math.max(0, state.introT - dt);
+    if (wasReady && state.introT <= 0.6) sfx.bell(1);      // "FIGHT!"
     state.flashRed = Math.max(0, state.flashRed - dt * 1.4);
     state.dim = Math.max(0, state.dim - dt * 0.9);
     for (const b of state.banners) b.t += dt;

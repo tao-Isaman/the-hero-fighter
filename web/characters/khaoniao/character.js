@@ -6,6 +6,7 @@ window.CHARACTERS.khaoniao = {
   hp: 110,
   walkSpeed: 175,
   jumpVelocity: -660,
+  sfx: "fist",
 
   sprite: { frameW: 224, frameH: 224, anchorX: 95, anchorY: 220, scale: 0.62 },
   portrait: { image: "sprites/portrait.png", crop: { x: 46, y: 6, w: 100, h: 100 } },

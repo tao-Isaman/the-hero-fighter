@@ -24,6 +24,7 @@ web/characters/
    - เปิด `web/index.html#saen` เพื่อเล่นตัวใหม่ (ไม่ใส่ `#` จะเป็นกัลป์)
 2. ทำรูปตัวละครตามตารางด้านล่าง แล้ววางใน `sprites/`
 3. แก้ชื่อ ค่าพลัง ดาเมจ และสกิลใน `character.js`
+4. รัน `python3 tools/build_sw.py` ให้ไฟล์ใหม่เข้าแคชของแอป (PWA เล่นออฟไลน์ได้)
 
 ## รูปที่ต้องมี
 
@@ -79,7 +80,9 @@ web/characters/
 
 ## ค่าใน character.js
 
-**ตัวละคร**: `name`, `hudName`, `hp`, `walkSpeed`, `jumpVelocity`, `sprite`, `portrait`
+**ตัวละคร**: `name`, `hudName`, `hp`, `walkSpeed`, `jumpVelocity`, `sfx`, `sprite`, `portrait`
+
+**เสียง (`sfx`)**: เสียงตอนตีโดน `"stick"` = ไม้กระทบดังแป๊ก หรือ `"fist"` = หมัดกระแทกเนื้อ (แถวคอมโบที่มี `punch: true` ใช้เสียงหมัดเสมอ) เสียงทั้งหมดสังเคราะห์ใน `web/sfx.js` ไม่ต้องมีไฟล์เสียง
 
 **แอนิเมชัน (`anims`)**
 - `fps` + `loop`: ท่าที่วนซ้ำ

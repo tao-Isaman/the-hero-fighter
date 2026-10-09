@@ -8,6 +8,7 @@ window.CHARACTERS.__ID__ = {
   hp: 100,
   walkSpeed: 165,
   jumpVelocity: -640,
+  sfx: "stick",          // hit sound: "stick" (wood/weapon crack) or "fist" (punch)
 
   // All sprite sheets: horizontal strips of 224x224 frames, character facing RIGHT.
   // anchorX/anchorY = the point between the feet. scale = on-screen size.

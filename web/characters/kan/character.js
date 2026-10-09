@@ -8,6 +8,7 @@ window.CHARACTERS.kan = {
   hp: 100,
   walkSpeed: 165,
   jumpVelocity: -640,
+  sfx: "stick",          // hit sound: "stick" (wood crack) or "fist" (punch); combo rows with punch: true always use "fist"
 
   // Every sprite sheet is a horizontal strip of frameW x frameH frames, facing RIGHT.
   // anchorX/anchorY = the point between the feet in each frame. scale = size on screen.
