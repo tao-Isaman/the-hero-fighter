@@ -13,7 +13,7 @@ window.CHARACTERS.khaoniao = {
   anims: {
     idle: { image: "sprites/idle.png", fps: 8, loop: true },
     walk: { image: "sprites/walk.png", fps: 12, loop: true },
-    jump: { image: "sprites/jump.png", fps: 12, bottoms: "auto", airFrames: [2, 6] },
+    jump: { image: "sprites/jump.png", fps: 12, bottoms: "auto", airFrames: [3, 7] },
 
     // 4-punch combo, 4 frames each: chamber, extend, extend, impact
     attack1: { image: "sprites/attack1.png", duration: 0.24, playFor: 0.7, hitAt: 0.5 },
@@ -35,14 +35,14 @@ window.CHARACTERS.khaoniao = {
 
   // left, right, left, then a heavy right. `punch` draws speed lines instead of a swing arc.
   combo: [
-    { anim: "attack1", dmg: [7, 10], crit: 0.15, kb: 24, reach: 84, dir: 1, power: 0, drift: 30, punch: true },
-    { anim: "attack2", dmg: [8, 11], crit: 0.15, kb: 26, reach: 88, dir: 1, power: 0, drift: 30, punch: true },
-    { anim: "attack3", dmg: [9, 12], crit: 0.18, kb: 30, reach: 84, dir: 1, power: 1, drift: 30, punch: true },
-    { anim: "attack4", dmg: [22, 30], crit: 0.3, kb: 130, reach: 96, dir: 1, power: 2, drift: 60, punch: true },
+    { anim: "attack1", dmg: [7, 10], crit: 0.15, kb: 24, reach: 104, dir: 1, power: 0, drift: 30, punch: true },
+    { anim: "attack2", dmg: [8, 11], crit: 0.15, kb: 26, reach: 106, dir: 1, power: 0, drift: 30, punch: true },
+    { anim: "attack3", dmg: [9, 12], crit: 0.18, kb: 30, reach: 104, dir: 1, power: 1, drift: 30, punch: true },
+    { anim: "attack4", dmg: [22, 30], crit: 0.3, kb: 130, reach: 112, dir: 1, power: 2, drift: 60, punch: true },
   ],
   airCombo: [
-    { anim: "air1", dmg: [9, 12], crit: 0.18, kb: 20, reach: 90, dir: 1, power: 0, punch: true },
-    { anim: "air2", dmg: [10, 13], crit: 0.2, kb: 24, reach: 92, dir: 1, power: 1, punch: true },
+    { anim: "air1", dmg: [9, 12], crit: 0.18, kb: 20, reach: 104, dir: 1, power: 0, punch: true },
+    { anim: "air2", dmg: [10, 13], crit: 0.2, kb: 24, reach: 106, dir: 1, power: 1, punch: true },
     { anim: "air3", dmg: [20, 28], crit: 0.3, kb: 120, reach: 108, dir: 1, power: 2, plunge: true, punch: true },
   ],
 

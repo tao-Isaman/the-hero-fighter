@@ -1700,6 +1700,8 @@
 
   fitCanvas();
   reset();
+  // read-only handle for automated tests and debugging in the console
+  window.__komfaek = { get state() { return state; } };
   syncSkillButtons();
   const status = document.getElementById("status");
   loadImages()
