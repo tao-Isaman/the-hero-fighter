@@ -684,6 +684,7 @@
     const def = sk.def;
     if (def.leap) return sk.phase;              // 0 rising, 1 falling strike, 2 landed
     if (def.counter) return sk.countering ? (sk.ct < def.counter.hitAt ? 1 : 2) : 0;   // guard, then strike back
+    if (def.travel) return sk.landedT !== undefined ? 2 : sk.t < 0.1 ? 0 : 1;   // take off, strike, land
     if (sk.t < (def.charge || 0)) return 0;     // charging holds the first frame
     const k = (sk.t - (def.charge || 0)) / def.dur;
     if (def.loopFrames) return Math.floor(k * 9) % 3;   // spin: cycle the 3 frames fast
@@ -778,7 +779,10 @@
     if (!p.onGround) {
       p.vy += GRAVITY * (def.gravity ?? 1) * dt;
       p.y += p.vy * dt;
-      if (p.y >= GROUND_Y) { p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.airUsed = false; }
+      if (p.y >= GROUND_Y) {
+        p.y = GROUND_Y; p.vy = 0; p.onGround = true; p.airUsed = false;
+        if (def.travel) { sk.landedT = 0; state.shake = Math.max(state.shake, 3); addShockwave(p.x, GROUND_Y); }
+      }
       if (def.trail) {
         sk.trailT -= dt;
         if (sk.trailT <= 0) { sk.trailT = def.trail.every; spawnFx(p, def.trail.fx); }
@@ -813,8 +817,15 @@
     }
 
     const holding = def.shot && state.shots.length > 0;   // wait to catch the thrown weapon
-    const flying = def.travel && !p.onGround;              // a flying knee ends on landing
-    if (k >= 1 && !holding && !flying) endSkill(p);
+    if (def.travel) {
+      // a flying strike ends a moment after it lands, whatever its clip length
+      if (sk.landedT !== undefined) {
+        sk.landedT += dt;
+        if (sk.landedT > (def.travel.landHold ?? 0.18)) endSkill(p);
+      }
+      return true;
+    }
+    if (k >= 1 && !holding) endSkill(p);
     return true;
   }
 

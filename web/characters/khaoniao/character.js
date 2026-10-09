@@ -90,11 +90,12 @@ window.CHARACTERS.khaoniao = {
         fx: [{ key: "buffalo", dx: 10, dy: -6, vx: 640, life: 0.6, s0: 0.9, s1: 1.35 }, { shockwave: true }] }],
     },
     knee: {
-      name: "เข่าพญาไฟ", desc: "กระโดดพุ่งเข่า 4 ครั้ง ไฟลุกตามพื้น", cd: 8, dur: 0.9,
-      frames: [0, 0.2, 0.55], icon: "groundfire", travel: { vx: 320, vy: -520 },
+      // 3 frames: take off, flying knee (held while airborne), landing
+      name: "เข่าพญาไฟ", desc: "กระโดดแทงเข่า 4 ครั้ง ไฟลุกตามพื้น", cd: 8, dur: 0.55,
+      icon: "groundfire", travel: { vx: 280, vy: -520, landHold: 0.2 }, assist: 60,
       trail: { every: 0.05, fx: [{ key: "groundfire", at: "ground", anchor: "bottom", life: 0.8, s0: 0.8, s1: 1 }] },
-      hits: [0.2, 0.36, 0.52, 0.68].map((at, i) => ({
-        at, dmg: [10, 14], reach: 90, both: true, power: i === 3 ? 2 : 1, kb: 30, sparkColor: "#ff7a1a",
+      hits: [0.14, 0.3, 0.46, 0.62].map((at, i) => ({
+        at, dmg: [10, 14], reach: 115, both: true, power: i === 3 ? 2 : 1, kb: 30, sparkColor: "#ff7a1a",
         fx: [{ sparks: [[8, "#ff7a1a"], [6, "#ffd23f"]] }],
       })),
     },
