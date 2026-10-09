@@ -424,6 +424,16 @@
     .sel-col .char { padding: 6px 4px; font-size: 0.75rem; }
     .sel-col .char canvas { width: 48px; height: 48px; }
   }
+  .pick-group { margin: 2px 0 -4px; font-size: 0.95rem; font-weight: 600; color: var(--gold); display: flex; gap: 8px; align-items: baseline; }
+  .pick-group span { font-size: 0.8rem; font-weight: 400; color: var(--muted); }
+  .pick-group.ult { color: var(--ember); }
+  .pick.ult.on { border-color: var(--ember); }
+  .pick.ult em { background: var(--ember); color: var(--paper); }
+  @media (max-height: 480px) {
+    #picker { padding: 8px; }
+    #picker .pick-panel { padding: 10px 12px; gap: 8px; }
+    .pick .pd { display: none; }
+  }
   .pick-done {
     justify-self: end;
     font-family: var(--font-display);
@@ -520,7 +530,6 @@
     <div class="sys">
       <button data-act="restart" aria-label="เริ่มใหม่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
       <button data-open-chars aria-label="เลือกตัวละคร"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></button>
-      <button data-open-picker aria-label="เลือกสกิล"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg></button>
       <button data-sound aria-label="เปิด/ปิดเสียง"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path class="wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="mute" d="M16 9l6 6M22 9l-6 6"/></svg></button>
       <button id="fullscreen" aria-label="เต็มจอ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </div>
@@ -533,7 +542,6 @@
   <li class="keys"><kbd>J</kbd> / <kbd>X</kbd> โจมตี กดต่อเนื่องเป็นคอมโบ</li>
   <li class="keys">กระโดดแล้วกด <kbd>J</kbd> คอมโบกลางอากาศ</li>
   <li class="keys"><kbd>U</kbd><kbd>I</kbd><kbd>O</kbd> ใช้สกิล 3 ช่อง</li>
-  <li class="keys"><button class="open-skills" type="button" data-open-picker>เลือกสกิล (Tab)</button></li>
   <li class="keys"><button class="open-skills" type="button" data-open-chars>เปลี่ยนตัวละคร</button></li>
   <li class="keys"><kbd>R</kbd> เริ่มใหม่</li>
   <li class="keys"><button class="open-skills sound-toggle" type="button" data-sound><kbd>M</kbd> เสียง <span class="on-label">เปิด</span><span class="off-label">ปิด</span></button></li>
@@ -543,11 +551,17 @@
 <div id="picker" hidden>
   <div class="pick-panel" role="dialog" aria-modal="true" aria-labelledby="pick-title">
     <div class="pick-head">
-      <h2 id="pick-title">เลือกสกิล 3 ท่า</h2>
-      <p class="pick-note"></p>
+      <h2 id="pick-title">เลือกสกิล</h2>
+      <p class="pick-note" aria-live="polite"></p>
     </div>
-    <ul class="pick-list"></ul>
-    <button class="pick-done" type="button">ใช้ชุดนี้</button>
+    <h3 class="pick-group">สกิลธรรมดา <span>เลือก 2 ท่า · ปุ่ม U I</span></h3>
+    <ul class="pick-list normal"></ul>
+    <h3 class="pick-group ult">ไม้ตาย <span>เลือก 1 ท่า · ปุ่ม O</span></h3>
+    <ul class="pick-list ult"></ul>
+    <div class="sel-foot">
+      <button class="sel-back pick-back" type="button">เปลี่ยนตัวละคร</button>
+      <button class="pick-done" type="button">เริ่มต่อสู้</button>
+    </div>
   </div>
 </div>
 
@@ -570,7 +584,7 @@
     </div>
     <div class="sel-foot">
       <button class="sel-back" type="button" hidden>กลับเข้าเกม</button>
-      <button class="pick-done sel-start" type="button">เริ่มต่อสู้</button>
+      <button class="pick-done sel-start" type="button">ถัดไป: เลือกสกิล</button>
     </div>
   </div>
 </div>

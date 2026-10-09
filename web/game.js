@@ -268,22 +268,29 @@
   // ---------- loadouts ----------
   let p1Kit = KITS[P1_ID];
   let LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
+  // A loadout is always [normal, normal, ultimate]: slots U, I and O.
+  const normalsOf = (kit) => kit.c.skillOrder.filter((id) => !kit.c.skills[id].ult);
+  const ultsOf = (kit) => kit.c.skillOrder.filter((id) => kit.c.skills[id].ult);
+  function normalizeLoadout(kit, ids) {
+    const sk = kit.c.skills;
+    const normals = (ids || []).filter((id) => sk[id] && !sk[id].ult).slice(0, 2);
+    for (const id of [...kit.c.defaultLoadout, ...normalsOf(kit)]) {
+      if (normals.length >= 2) break;
+      if (sk[id] && !sk[id].ult && !normals.includes(id)) normals.push(id);
+    }
+    const ult = (ids || []).find((id) => sk[id] && sk[id].ult) || kit.c.defaultLoadout.find((id) => sk[id] && sk[id].ult) || ultsOf(kit)[0];
+    return [...normals, ult].filter(Boolean);
+  }
   function savedLoadout(kit) {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`komfaek.skills.${kit.id}`) || "null");
-      if (Array.isArray(saved) && saved.length === 3 && saved.every((id) => kit.c.skills[id])) return saved;
-    } catch (_) { /* storage unavailable */ }
-    return [...kit.c.defaultLoadout];
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(`komfaek.skills.${kit.id}`) || "null"); } catch (_) { /* storage unavailable */ }
+    return normalizeLoadout(kit, Array.isArray(saved) ? saved : kit.c.defaultLoadout);
   }
   let p1Loadout = savedLoadout(p1Kit);
-  // the AI brings its default set plus every ultimate it is missing, so it always has a big move
+  // the AI brings two random normal skills and a random ultimate
   function aiLoadout(kit) {
-    const set = [...kit.c.defaultLoadout];
-    if (!set.some((id) => kit.c.skills[id].ult)) {
-      const ult = kit.c.skillOrder.find((id) => kit.c.skills[id].ult);
-      if (ult) set[2] = ult;
-    }
-    return set;
+    const shuffle = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+    return normalizeLoadout(kit, [...shuffle(normalsOf(kit)).slice(0, 2), shuffle(ultsOf(kit))[0]]);
   }
 
   // ---------- world state ----------
@@ -1148,70 +1155,68 @@
     });
   }
 
-  // The picker edits a draft; the equipped loadout only changes when the draft is
-  // complete and applied, so the game never sees fewer than 3 skills.
+  // ---------- skill step: after picking fighters, choose 2 normal skills and 1 ultimate ----------
   const picker = document.getElementById("picker");
-  let pickerOpen = false;
-  let draft = [];
-  function renderPicker() {
-    const list = picker.querySelector(".pick-list");
-    list.textContent = "";
-    for (const id of p1Kit.c.skillOrder) {
-      const def = p1Kit.c.skills[id];
-      const slot = draft.indexOf(id);
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "pick" + (slot >= 0 ? " on" : "") + (def.ult ? " ult" : "");
-      b.setAttribute("aria-pressed", slot >= 0 ? "true" : "false");
-      b.innerHTML = `<img alt="" src="${M.vfx[def.icon]}"><span class="pn">${def.name}</span>` +
-        `<span class="pd">${def.desc}</span><span class="pc">${def.ult ? "ULT · " : ""}CD ${def.cd}s</span>` +
-        (slot >= 0 ? `<em>${slot + 1}</em>` : "");
-      b.addEventListener("click", () => togglePick(id));
-      li.appendChild(b);
-      list.appendChild(li);
-    }
-    picker.querySelector(".pick-note").textContent =
-      draft.length < 3 ? `เลือกอีก ${3 - draft.length} ท่า` : "ติดตั้งครบ 3 ท่าแล้ว แตะท่าที่เลือกไว้เพื่อถอดออก";
-    picker.querySelector(".pick-done").disabled = draft.length !== 3;
+  let pickerOpen = false;           // kept for the update() pause check
+  const draft = { normals: [], ult: null };
+  function skillCard(kit, id, slotLabel, onClick) {
+    const def = kit.c.skills[id];
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pick" + (slotLabel ? " on" : "") + (def.ult ? " ult" : "");
+    b.setAttribute("aria-pressed", slotLabel ? "true" : "false");
+    b.innerHTML = `<img alt="" src="${M.vfx[def.icon]}"><span class="pn">${def.name}</span>` +
+      `<span class="pd">${def.desc}</span><span class="pc">${def.ult ? "ULT · " : ""}CD ${def.cd}s</span>` +
+      (slotLabel ? `<em>${slotLabel}</em>` : "");
+    b.addEventListener("click", onClick);
+    li.appendChild(b);
+    return li;
   }
-  function togglePick(id) {
-    const i = draft.indexOf(id);
-    if (i >= 0) draft.splice(i, 1);
-    else if (draft.length < 3) draft.push(id);
+  function renderPicker() {
+    const kit = KITS[pick.p1];
+    picker.querySelector("#pick-title").textContent = `เลือกสกิล · ${kit.c.name}`;
+    const normalList = picker.querySelector(".pick-list.normal");
+    const ultList = picker.querySelector(".pick-list.ult");
+    normalList.textContent = "";
+    ultList.textContent = "";
+    for (const id of normalsOf(kit)) {
+      const i = draft.normals.indexOf(id);
+      normalList.appendChild(skillCard(kit, id, i >= 0 ? ["U", "I"][i] : null, () => toggleNormal(id)));
+    }
+    for (const id of ultsOf(kit)) {
+      ultList.appendChild(skillCard(kit, id, draft.ult === id ? "O" : null, () => { draft.ult = id; renderPicker(); }));
+    }
+    const need = 2 - draft.normals.length;
+    picker.querySelector(".pick-note").textContent =
+      need > 0 ? `เลือกสกิลธรรมดาอีก ${need} ท่า` : !draft.ult ? "เลือกไม้ตาย 1 ท่า" : "พร้อมแล้ว กดเริ่มต่อสู้";
+    picker.querySelector(".pick-done").disabled = need > 0 || !draft.ult;
+  }
+  function toggleNormal(id) {
+    const i = draft.normals.indexOf(id);
+    if (i >= 0) draft.normals.splice(i, 1);
+    else if (draft.normals.length < 2) draft.normals.push(id);
     else {
       const note = picker.querySelector(".pick-note");
-      note.textContent = "เลือกได้ 3 ท่า แตะท่าที่เลือกไว้เพื่อถอดออกก่อน";
+      note.textContent = "สกิลธรรมดาเลือกได้ 2 ท่า แตะท่าที่เลือกไว้เพื่อถอดออกก่อน";
       note.classList.remove("shake"); void note.offsetWidth; note.classList.add("shake");
       return;
     }
     renderPicker();
   }
-  function openPicker() {
-    if (pickerOpen || menuOpen) return;
-    pickerOpen = true;
-    draft = [...p1Loadout];
+  function openSkillStep() {
+    const set = savedLoadout(KITS[pick.p1]);
+    draft.normals = set.slice(0, 2);
+    draft.ult = set[2] || null;
+    charsel.hidden = true;
     picker.hidden = false;
-    keys.clear();
     renderPicker();
+    picker.querySelector(".pick-done").focus();
   }
-  // apply = true: equip the draft (only when it has 3); false: discard it
-  function closePicker(apply = true) {
-    if (!pickerOpen) return;
-    if (apply) {
-      if (draft.length !== 3) return;
-      const changed = draft.join() !== p1Loadout.join();
-      p1Loadout = [...draft];
-      state.p1.loadout = p1Loadout;
-      try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(p1Loadout)); } catch (_) { /* ignore */ }
-      if (changed) state.p1.cooldowns = [0, 0, 0];
-      syncSkillButtons();
-    }
-    pickerOpen = false;
+  function backToFighters() {
     picker.hidden = true;
-    keys.clear();
-    pressed.clear();
-    canvas.focus();
+    charsel.hidden = false;
+    charsel.querySelector(".sel-start").focus();
   }
 
   // ---------- select screen: your fighter and the AI's, shown before every match ----------
@@ -1258,8 +1263,8 @@
   }
   function openMenu() {
     if (!charsel || menuOpen) return;
-    if (pickerOpen) closePicker(false);
     menuOpen = true;
+    picker.hidden = true;
     keys.clear();
     pressed.clear();
     pick.p1 = P1_ID;
@@ -1270,6 +1275,7 @@
   }
   function closeMenu() {
     charsel.hidden = true;
+    picker.hidden = true;
     menuOpen = false;
     keys.clear();
     pressed.clear();
@@ -1280,7 +1286,8 @@
     P2_ID = pick.p2;
     p1Kit = KITS[P1_ID];
     LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
-    p1Loadout = savedLoadout(p1Kit);
+    p1Loadout = [...draft.normals, draft.ult];
+    try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(p1Loadout)); } catch (_) { /* ignore */ }
     try { localStorage.setItem(MATCH_KEY, JSON.stringify({ p1: P1_ID, p2: P2_ID })); } catch (_) { /* ignore */ }
     reset();
     syncSkillButtons();
@@ -1289,27 +1296,24 @@
   }
   if (charsel) {
     for (const b of document.querySelectorAll("[data-open-chars]")) b.addEventListener("click", openMenu);
-    charsel.querySelector(".sel-start").addEventListener("click", startMatch);
+    charsel.querySelector(".sel-start").addEventListener("click", openSkillStep);
+    picker.querySelector(".pick-done").addEventListener("click", () => { if (draft.normals.length === 2 && draft.ult) startMatch(); });
+    picker.querySelector(".pick-back").addEventListener("click", backToFighters);
     charsel.querySelector(".sel-back").addEventListener("click", () => { if (matchLive) closeMenu(); });
     addEventListener("keydown", (e) => {
       if (!menuOpen) return;
-      if (e.code === "Escape" && matchLive) { e.preventDefault(); closeMenu(); }
-      else if (e.code === "Enter" && document.activeElement?.closest?.(".char") == null) { e.preventDefault(); startMatch(); }
+      const onSkills = !picker.hidden;
+      if (e.code === "Escape") {
+        e.preventDefault();
+        if (onSkills) backToFighters();
+        else if (matchLive) closeMenu();
+      } else if (e.code === "Enter" && document.activeElement?.closest?.(".char, .pick") == null) {
+        e.preventDefault();
+        if (!onSkills) openSkillStep();
+        else if (draft.normals.length === 2 && draft.ult) startMatch();
+      }
     });
   }
-  if (picker) {
-    picker.querySelector(".pick-done").addEventListener("click", () => closePicker(true));
-    // tapping the dark area around the panel closes it without changes
-    picker.addEventListener("click", (e) => { if (e.target === picker) closePicker(false); });
-    for (const b of document.querySelectorAll("[data-open-picker]")) b.addEventListener("click", openPicker);
-    addEventListener("keydown", (e) => {
-      if (menuOpen) return;
-      if (e.code === "Tab" && !pickerOpen) { e.preventDefault(); openPicker(); }
-      else if (e.code === "Escape" && pickerOpen) { e.preventDefault(); closePicker(false); }
-      else if (e.code === "Tab" && pickerOpen) { e.preventDefault(); closePicker(true); }
-    });
-  }
-
   // ---------- update ----------
   function update(rawDt) {
     if (pickerOpen || menuOpen) { pressed.clear(); return; }
