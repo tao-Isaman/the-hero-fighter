@@ -26,7 +26,13 @@ window.MANIFEST = {
   "blinkrift": "assets/vfx_blinkrift.png",
   "claw": "assets/vfx_claw.png",
   "clawheavy": "assets/vfx_clawheavy.png",
-  "clawx": "assets/vfx_clawx.png"
+  "clawx": "assets/vfx_clawx.png",
+  "tigerclaw": "assets/vfx_tigerclaw.png",
+  "tigerbeast": "assets/vfx_tigerbeast.png",
+  "jungleaura": "assets/vfx_jungleaura.png",
+  "leaves": "assets/vfx_leaves.png",
+  "bullet": "assets/vfx_bullet.png",
+  "pistol": "assets/vfx_pistol.png"
  },
  "vfxAnim": {
   "bird": {
@@ -123,6 +129,22 @@ window.MANIFEST = {
    "loop": true,
    "frameW": 111,
    "frameH": 154,
+   "frames": 9
+  },
+  "tigerbeast": {
+   "image": "assets/vfx_tigerbeast_anim.png",
+   "fps": 14,
+   "loop": true,
+   "frameW": 137,
+   "frameH": 90,
+   "frames": 9
+  },
+  "jungleaura": {
+   "image": "assets/vfx_jungleaura_anim.png",
+   "fps": 12,
+   "loop": true,
+   "frameW": 119,
+   "frameH": 158,
    "frames": 9
   }
  }

@@ -361,7 +361,8 @@
     if (target.invulnT > 0) return false;
 
     const [lo, hi] = o.dmg;
-    const crit = Math.random() < (o.crit ?? 0.2);
+    const critBonus = attacker.buffT > 0 && attacker.buff ? attacker.buff.crit || 0 : 0;
+    const crit = Math.random() < (o.crit ?? 0.2) + critBonus;
     const buffed = attacker.buffT > 0 && attacker.buff;
     const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1) * (buffed ? buffed.dmg : 1));
     target.hp = Math.max(0, target.hp - dmg);
@@ -437,7 +438,7 @@
   // ---------- combos ----------
   // ---------- sound ----------
   const noop = () => {};
-  const sfx = window.SFX || { swing: noop, hit: noop, clang: noop, boom: noop, thud: noop, jump: noop, ult: noop, charge: noop, bell: noop, ko: noop };
+  const sfx = window.SFX || { swing: noop, hit: noop, clang: noop, boom: noop, thud: noop, jump: noop, ult: noop, charge: noop, bell: noop, ko: noop, gun: noop };
   // punches always sound like fists; everything else uses the character's weapon (see characters/README.md)
   function weaponOf(f, o) { return o && o.punch ? "fist" : f.kit.c.sfx || "fist"; }
 
@@ -519,6 +520,8 @@
     f.cooldowns[slot] = def.cd;
     showBanner(f, def);
     if (def.ult) sfx.ult();
+    if (def.sound) sfx[def.sound]?.();
+    if (f.buffT > 0 && f.buff && f.buff.hitFx) addVfx(f.buff.hitFx, f.x, f.y - 60, { life: 0.4, s0: 0.6, s1: 1.1 });   // buffed casts burst too
     if (def.charge) sfx.charge(def.charge);
     else if (!def.counter) sfx.swing(weaponOf(f, def), 1);
     if (def.ult) f.invulnT = Math.max(f.invulnT, 0.5);
@@ -653,6 +656,27 @@
       sk.blinked = true;
       if (blinkBehind(f, def.blink)) sk.dashTo = null;
     }
+    // dash: run in the held direction (forward if none); hit once when passing the opponent
+    if (def.dash) {
+      const D = def.dash, o = f.opp;
+      if (sk.dashDir === undefined) {
+        const held = (f.input.keys.has("right") ? 1 : 0) - (f.input.keys.has("left") ? 1 : 0);
+        sk.dashDir = held || f.facing;
+        sk.dashSide = Math.sign(o.x - f.x);
+      }
+      sk.dashing = sk.t - t0 < D.time;
+      if (sk.dashing) {
+        f.x = clamp(f.x + sk.dashDir * (D.dist / D.time) * dt, 40, M.worldWidth - 40);
+        sk.passThrough = true;
+        const side = Math.sign(o.x - f.x);
+        const crossed = side !== sk.dashSide || Math.abs(o.x - f.x) < 28;
+        if (!sk.dashHit && crossed && Math.abs(o.y - f.y) < 120 && o.hp > 0) {
+          sk.dashHit = true;
+          spawnFx(f, D.hit.fx);
+          hitFighter(o, { crit: 0.25, kb: 60, ...D.hit, skill: true, dir: sk.dashDir }, f);
+        }
+      }
+    }
     // pull: drag the opponent in while the field is up (no damage)
     if (def.pull) {
       const o = f.opp, d = o.x - f.x;
@@ -671,7 +695,8 @@
     }
 
     // ground skills are rooted unless they drift or travel forward
-    f.vx = def.travel && !f.onGround ? f.facing * def.travel.vx : def.drift ? f.facing * def.drift : 0;
+    if (def.dash) f.vx = 0;
+    else f.vx = def.travel && !f.onGround ? f.facing * def.travel.vx : def.drift ? f.facing * def.drift : 0;
     f.x += f.vx * dt;
     if (sk.dashTo !== null && sk.t < 0.16) {
       f.x += (sk.dashTo - f.x) * Math.min(1, dt * 22);
@@ -702,11 +727,20 @@
     }
 
     if (def.shot && !sk.thrown && k >= def.shot.at) {
-      sk.thrown = true;
-      state.shots.push({
-        owner: f, x: f.x + f.facing * 30, y: f.y - 62, dir: f.facing, dist: 0, out: true,
-        hit: false, rot: 0, def: def.shot,
-      });
+      // a burst fires `burst` shots `gap` seconds apart; a plain shot fires once
+      const fired = sk.fired || 0;
+      const burst = def.shot.burst || 1;
+      if (sk.t - t0 >= def.shot.at * def.dur + fired * (def.shot.gap || 0)) {
+        sk.fired = fired + 1;
+        if (sk.fired >= burst) sk.thrown = true;
+        const muzzle = def.shot.muzzle || [30, -62];
+        state.shots.push({
+          owner: f, x: f.x + f.facing * muzzle[0], y: f.y + muzzle[1], dir: f.facing, dist: 0, out: true,
+          hit: false, rot: 0, def: def.shot,
+        });
+        if (def.shot.flash) addSparks(f.x + f.facing * muzzle[0], f.y + muzzle[1], 6, def.shot.flash);
+        if (def.shot.sound) sfx[def.shot.sound]?.();
+      }
     }
 
     if (def.aura && !sk.aura) {
@@ -944,11 +978,12 @@
       if (input.keys.has("right")) dir += 1;
       // fighters always face each other; walking away is a back-step
       f.facing = Math.sign(o.x - f.x) || f.facing;
-      f.vx = dir * f.kit.c.walkSpeed * (dir === f.facing ? 1 : 0.75);
+      const haste = f.buffT > 0 && f.buff ? f.buff.speed || 1 : 1;
+      f.vx = dir * f.kit.c.walkSpeed * haste * (dir === f.facing ? 1 : 0.75);
 
       if (input.pressed.has("jump") && f.onGround) {
         sfx.jump();
-        f.vy = f.kit.c.jumpVelocity;
+        f.vy = f.kit.c.jumpVelocity * (f.buffT > 0 && f.buff ? f.buff.jump || 1 : 1);
         f.onGround = false;
         f.anim = "jump";
         f.t = 0;
@@ -980,7 +1015,8 @@
   // keep the two bodies apart on the ground and inside the arena
   function separateFighters() {
     const [a, b] = state.fighters;
-    if (a.y > GROUND_Y - 50 && b.y > GROUND_Y - 50 && a.hp > 0 && b.hp > 0 && a.downT <= 0 && b.downT <= 0) {
+    const dashing = (a.skill && a.skill.dashing) || (b.skill && b.skill.dashing);   // dashes pass through
+    if (!dashing && a.y > GROUND_Y - 50 && b.y > GROUND_Y - 50 && a.hp > 0 && b.hp > 0 && a.downT <= 0 && b.downT <= 0) {
       const gap = b.x - a.x, minGap = 50;
       if (Math.abs(gap) < minGap) {
         const push = (minGap - Math.abs(gap)) / 2 * (gap >= 0 ? 1 : -1);
@@ -999,6 +1035,7 @@
   function skillRange(def) {
     if (def.shot) return def.shot.range * 0.8;
     if (def.blink) return def.blink.range;
+    if (def.dash) return def.dash.dist * 0.8;
     if (def.pull) return def.pull.range;
     if (def.buff) return 9999;
     if (def.leap && typeof def.leap === "object" && def.leap.dive) return 420;
@@ -1382,12 +1419,22 @@
     if (f.skill) {
       f.ghostT -= 1 / 60;
       if (f.ghostT <= 0) {
-        f.ghostT = 0.035;
-        f.ghosts.push({ anim: f.anim, frame, x: f.x, y: f.y, facing: f.facing, born: state.time });
+        const shadow = !!(f.skill.def.dash && f.skill.def.dash.shadow && f.skill.dashing);
+        f.ghostT = shadow ? 0.025 : 0.035;
+        f.ghosts.push({ anim: f.anim, frame, x: f.x, y: f.y, facing: f.facing, born: state.time, shadow });
       }
     }
-    f.ghosts = f.ghosts.filter((g) => state.time - g.born < 0.16);
+    f.ghosts = f.ghosts.filter((g) => state.time - g.born < (g.shadow ? 0.32 : 0.16));
     for (const g of f.ghosts) {
+      if (g.shadow) {
+        // dark shadow copies trailing a dash
+        const age = (state.time - g.born) / 0.32;
+        ctx.save();
+        ctx.filter = "brightness(0.12) saturate(0)";
+        drawFrame(f.kit.anims[g.anim], g.frame, g.x - camX, g.y, g.facing, f.kit.scale, 0.6 * (1 - age));
+        ctx.restore();
+        continue;
+      }
       const age = (state.time - g.born) / 0.16;
       drawFrame(f.kit.anims[g.anim], g.frame, g.x - camX, g.y, g.facing, f.kit.scale, 0.35 * (1 - age));
     }

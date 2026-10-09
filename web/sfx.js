@@ -266,6 +266,24 @@
       noise(t, { type: "bandpass", f0: 300, f1: 2000, q: 2, dur: sec, gain: 0.18, attack: sec * 0.8 });
     },
 
+    // big cat roar: a growling saw sweep with a breathy noise bed
+    roar() {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      tone(t, { type: "sawtooth", f0: 140, f1: 70, dur: 0.9, gain: 0.35, attack: 0.08, drive: true, wet: 0.6 });
+      tone(t, { type: "sawtooth", f0: 147, f1: 66, dur: 0.85, gain: 0.25, attack: 0.08, drive: true });
+      noise(t, { type: "bandpass", f0: 700, f1: 300, q: 0.8, dur: 0.9, gain: 0.4, attack: 0.08, drive: true, wet: 0.5 });
+    },
+
+    // pistol shot: sharp crack, punchy body, short room tail
+    gun() {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      noise(t, { type: "highpass", f0: 1800, dur: 0.03, gain: 0.8, drive: true });
+      noise(t, { type: "bandpass", f0: 900, f1: 300, q: 0.8, dur: 0.12, gain: 0.7, drive: true, wet: 0.5 });
+      tone(t, { f0: 160, f1: 50, dur: 0.1, gain: 0.7, drive: true });
+    },
+
     // boxing ring bell
     bell(times = 1) {
       if (!ready()) return;
