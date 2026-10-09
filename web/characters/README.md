@@ -80,7 +80,7 @@ web/characters/
 
 ## ค่าใน character.js
 
-**ตัวละคร**: `name`, `hudName`, `hp`, `walkSpeed`, `jumpVelocity`, `sfx`, `sprite`, `portrait`
+**ตัวละคร**: `name`, `hudName`, `hp`, `walkSpeed`, `jumpVelocity`, `sfx`, `sprite`, `portrait` (ในโหมดต่อสู้ HP เริ่มที่ 800 เท่ากันทุกตัว ค่า `hp` ไม่ถูกใช้)
 
 **เสียง (`sfx`)**: เสียงตอนตีโดน `"stick"` = ไม้กระทบดังแป๊ก หรือ `"fist"` = หมัดกระแทกเนื้อ (แถวคอมโบที่มี `punch: true` ใช้เสียงหมัดเสมอ) เสียงทั้งหมดสังเคราะห์ใน `web/sfx.js` ไม่ต้องมีไฟล์เสียง
 

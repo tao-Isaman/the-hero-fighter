@@ -390,6 +390,40 @@
   .char canvas { width: 96px; height: 96px; border: 2px solid var(--gold); image-rendering: pixelated; }
   .char.on { border-color: var(--gold); background: #2a1c3a; }
   .char:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  /* select screen: your fighter | VS | the CPU's fighter */
+  #charsel { background: radial-gradient(120% 90% at 50% 0%, rgba(58, 34, 64, 0.94), rgba(10, 6, 18, 0.96) 70%); }
+  .sel-panel { width: min(100%, 860px); }
+  .sel-cols { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; }
+  .sel-col h3 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; display: flex; gap: 8px; align-items: baseline; }
+  .sel-col h3 span { font-family: var(--font-pixel); font-size: 0.7rem; color: var(--muted); }
+  .sel-col[data-side="p1"] h3 { color: var(--gold); }
+  .sel-col[data-side="p2"] h3 { color: var(--ember); }
+  .sel-col .char-list { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .sel-col .char { padding: 8px 6px; font-size: 0.85rem; gap: 6px; line-height: 1.25; }
+  .sel-col .char canvas { width: 64px; height: 64px; border-color: var(--dusk); }
+  .sel-col[data-side="p1"] .char.on { border-color: var(--gold); }
+  .sel-col[data-side="p1"] .char.on canvas { border-color: var(--gold); }
+  .sel-col[data-side="p2"] .char.on { border-color: var(--ember); background: #351a2a; }
+  .sel-col[data-side="p2"] .char canvas { transform: scaleX(-1); }
+  .sel-col[data-side="p2"] .char.on canvas { border-color: var(--ember); }
+  .sel-vs { align-self: center; font-family: var(--font-pixel); font-size: 1.6rem; color: var(--gold); text-shadow: 0 2px 0 var(--ember); }
+  .sel-foot { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+  .sel-back {
+    font-family: var(--font-display); font-size: 1rem; padding: 8px 18px; border-radius: 999px;
+    border: 2px solid var(--dusk); background: transparent; color: var(--paper); cursor: pointer;
+  }
+  .sel-back[hidden] { display: none; }
+  @media (max-width: 560px) {
+    .sel-cols { grid-template-columns: 1fr; }
+    .sel-vs { justify-self: center; font-size: 1.1rem; }
+  }
+  @media (max-height: 480px) {
+    #charsel { padding: 8px; }
+    .sel-panel { padding: 10px 12px; gap: 8px; }
+    .sel-panel .pick-note { display: none; }
+    .sel-col .char { padding: 6px 4px; font-size: 0.75rem; }
+    .sel-col .char canvas { width: 48px; height: 48px; }
+  }
   .pick-done {
     justify-self: end;
     font-family: var(--font-display);
@@ -461,7 +495,7 @@
 
 <header>
   <h1>คมแฝก <small>KOM FAEK</small></h1>
-  <p>กัลป์ เกรียงไกร ปะทะ นักสู้พันธุ์ข้าวเหนียว · ผู้เล่น vs AI</p>
+  <p>ศึกฮีโร่ไทย · ผู้เล่น vs AI</p>
 </header>
 
 <div class="screen">
@@ -518,12 +552,26 @@
 </div>
 
 <div id="charsel" hidden>
-  <div class="pick-panel" role="dialog" aria-modal="true" aria-labelledby="char-title">
+  <div class="pick-panel sel-panel" role="dialog" aria-modal="true" aria-labelledby="char-title">
     <div class="pick-head">
-      <h2 id="char-title">เลือกตัวละคร</h2>
-      <p class="pick-note">แตะเพื่อเปลี่ยน เกมจะเริ่มใหม่ด้วยตัวที่เลือก</p>
+      <h2 id="char-title">เลือกนักสู้</h2>
+      <p class="pick-note">เลือกตัวของคุณ และคู่ต่อสู้ที่ AI จะควบคุม</p>
     </div>
-    <ul class="char-list"></ul>
+    <div class="sel-cols">
+      <section class="sel-col" data-side="p1" aria-label="ตัวละครของคุณ">
+        <h3>คุณ <span>YOU</span></h3>
+        <ul class="char-list"></ul>
+      </section>
+      <div class="sel-vs" aria-hidden="true">VS</div>
+      <section class="sel-col" data-side="p2" aria-label="คู่ต่อสู้">
+        <h3>คู่ต่อสู้ <span>CPU</span></h3>
+        <ul class="char-list"></ul>
+      </section>
+    </div>
+    <div class="sel-foot">
+      <button class="sel-back" type="button" hidden>กลับเข้าเกม</button>
+      <button class="pick-done sel-start" type="button">เริ่มต่อสู้</button>
+    </div>
   </div>
 </div>
 

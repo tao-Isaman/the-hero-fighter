@@ -10,13 +10,20 @@
   const GROUND_Y = M.groundY;       // feet line in screen space
   const GRAVITY = 1900;
   const COMBO_WINDOW = 0.38;        // seconds after an attack ends to chain the next
-  const HP_SCALE = 6;               // versus HP = character hp x this, so rounds last a while
+  const FIGHTER_HP = 800;           // every fighter starts a round with this much HP
   const MAX_SEPARATION = 520;       // fighters can't walk further apart than this
 
-  // ---------- fighters: P1 is ACTIVE_CHARACTER, the AI takes the next character ----------
+  // ---------- fighters: you pick P1 and the AI's fighter on the select screen ----------
   const ROSTER = Object.keys(window.CHARACTERS);
-  const P1_ID = ROSTER.includes(window.ACTIVE_CHARACTER) ? window.ACTIVE_CHARACTER : ROSTER[0];
-  const P2_ID = ROSTER.find((id) => id !== P1_ID) || P1_ID;
+  const MATCH_KEY = "komfaek.match";
+  let P1_ID = ROSTER.includes(window.ACTIVE_CHARACTER) ? window.ACTIVE_CHARACTER : ROSTER[0];
+  let P2_ID = ROSTER.find((id) => id !== P1_ID) || P1_ID;
+  try {
+    // the last match you set up, unless the URL names a fighter (#kan, #leklai, ...)
+    const m = JSON.parse(localStorage.getItem(MATCH_KEY) || "null");
+    if (m && !location.hash && ROSTER.includes(m.p1)) P1_ID = m.p1;
+    if (m && ROSTER.includes(m.p2)) P2_ID = m.p2;
+  } catch (_) { /* storage unavailable */ }
 
   // A kit is everything static about a character: data, clip table, portrait.
   function makeKit(id) {
@@ -32,7 +39,7 @@
     }
     return { id, c, anims, scale: c.sprite.scale, portrait: base + c.portrait.image };
   }
-  const KITS = { [P1_ID]: makeKit(P1_ID), [P2_ID]: makeKit(P2_ID) };
+  const KITS = Object.fromEntries(ROSTER.map((id) => [id, makeKit(id)]));
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -259,8 +266,8 @@
   }
 
   // ---------- loadouts ----------
-  const p1Kit = KITS[P1_ID];
-  const LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
+  let p1Kit = KITS[P1_ID];
+  let LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
   function savedLoadout(kit) {
     try {
       const saved = JSON.parse(localStorage.getItem(`komfaek.skills.${kit.id}`) || "null");
@@ -283,7 +290,7 @@
   let state;
 
   function newFighter(kit, x, facing, ctrl, loadout) {
-    const hp = kit.c.hp * HP_SCALE;
+    const hp = FIGHTER_HP;
     return {
       kit, ctrl, x, y: GROUND_Y, vx: 0, vy: 0, kvx: 0, facing,
       hp, maxHp: hp, shownHp: hp,
@@ -1138,7 +1145,7 @@
     renderPicker();
   }
   function openPicker() {
-    if (pickerOpen) return;
+    if (pickerOpen || menuOpen) return;
     pickerOpen = true;
     draft = [...p1Loadout];
     picker.hidden = false;
@@ -1164,54 +1171,88 @@
     canvas.focus();
   }
 
-  // character select: switching restarts the page with #<id>; the AI takes the other fighter
+  // ---------- select screen: your fighter and the AI's, shown before every match ----------
   const charsel = document.getElementById("charsel");
-  function openChars() {
-    if (!charsel) return;
-    keys.clear();
-    pickerOpen = true;              // pauses the game like the skill picker
-    const list = charsel.querySelector(".char-list");
-    list.textContent = "";
-    for (const [id, c] of Object.entries(window.CHARACTERS)) {
-      const li = document.createElement("li");
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "char" + (id === P1_ID ? " on" : "");
-      const cv = document.createElement("canvas");
-      cv.width = 48;
-      cv.height = 48;
-      const img = new Image();
-      img.onload = () => {
-        const cc = cv.getContext("2d");
-        cc.imageSmoothingEnabled = false;
-        const pc = c.portrait.crop;
-        cc.drawImage(img, pc.x, pc.y, pc.w, pc.h, 0, 0, 48, 48);
-      };
-      img.src = `characters/${id}/${c.portrait.image}`;
-      const name = document.createElement("span");
-      name.textContent = c.name;
-      b.append(cv, name);
-      b.addEventListener("click", () => {
-        if (id === P1_ID) { closeChars(); return; }
-        location.hash = id;
-        location.reload();
-      });
-      li.appendChild(b);
-      list.appendChild(li);
-    }
-    charsel.hidden = false;
+  let menuOpen = false;
+  let matchLive = false;            // a fight is in progress (the menu can be closed back into it)
+  const pick = { p1: P1_ID, p2: P2_ID };
+
+  function portraitCanvas(id, size) {
+    const c = window.CHARACTERS[id];
+    const cv = document.createElement("canvas");
+    cv.width = size;
+    cv.height = size;
+    const draw = (img) => {
+      const cc = cv.getContext("2d");
+      cc.imageSmoothingEnabled = false;
+      const pc = c.portrait.crop;
+      cc.drawImage(img, pc.x, pc.y, pc.w, pc.h, 0, 0, size, size);
+    };
+    const loaded = images[KITS[id].portrait];
+    if (loaded) draw(loaded);
+    else { const img = new Image(); img.onload = () => draw(img); img.src = KITS[id].portrait; }
+    return cv;
   }
-  function closeChars() {
+  function renderMenu() {
+    for (const side of ["p1", "p2"]) {
+      const list = charsel.querySelector(`[data-side="${side}"] .char-list`);
+      list.textContent = "";
+      for (const id of ROSTER) {
+        const li = document.createElement("li");
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "char" + (pick[side] === id ? " on" : "");
+        b.setAttribute("aria-pressed", String(pick[side] === id));
+        const name = document.createElement("span");
+        name.textContent = window.CHARACTERS[id].name;
+        b.append(portraitCanvas(id, 48), name);
+        b.addEventListener("click", () => { pick[side] = id; renderMenu(); });
+        li.appendChild(b);
+        list.appendChild(li);
+      }
+    }
+    charsel.querySelector(".sel-back").hidden = !matchLive;
+  }
+  function openMenu() {
+    if (!charsel || menuOpen) return;
+    if (pickerOpen) closePicker(false);
+    menuOpen = true;
+    keys.clear();
+    pressed.clear();
+    pick.p1 = P1_ID;
+    pick.p2 = P2_ID;
+    renderMenu();
+    charsel.hidden = false;
+    charsel.querySelector(".sel-start").focus();
+  }
+  function closeMenu() {
     charsel.hidden = true;
-    pickerOpen = false;
+    menuOpen = false;
     keys.clear();
     pressed.clear();
     canvas.focus();
   }
+  function startMatch() {
+    P1_ID = pick.p1;
+    P2_ID = pick.p2;
+    p1Kit = KITS[P1_ID];
+    LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
+    p1Loadout = savedLoadout(p1Kit);
+    try { localStorage.setItem(MATCH_KEY, JSON.stringify({ p1: P1_ID, p2: P2_ID })); } catch (_) { /* ignore */ }
+    reset();
+    syncSkillButtons();
+    matchLive = true;
+    closeMenu();
+  }
   if (charsel) {
-    for (const b of document.querySelectorAll("[data-open-chars]")) b.addEventListener("click", openChars);
-    charsel.addEventListener("click", (e) => { if (e.target === charsel) closeChars(); });
-    addEventListener("keydown", (e) => { if (e.code === "Escape" && !charsel.hidden) closeChars(); });
+    for (const b of document.querySelectorAll("[data-open-chars]")) b.addEventListener("click", openMenu);
+    charsel.querySelector(".sel-start").addEventListener("click", startMatch);
+    charsel.querySelector(".sel-back").addEventListener("click", () => { if (matchLive) closeMenu(); });
+    addEventListener("keydown", (e) => {
+      if (!menuOpen) return;
+      if (e.code === "Escape" && matchLive) { e.preventDefault(); closeMenu(); }
+      else if (e.code === "Enter" && document.activeElement?.closest?.(".char") == null) { e.preventDefault(); startMatch(); }
+    });
   }
   if (picker) {
     picker.querySelector(".pick-done").addEventListener("click", () => closePicker(true));
@@ -1219,6 +1260,7 @@
     picker.addEventListener("click", (e) => { if (e.target === picker) closePicker(false); });
     for (const b of document.querySelectorAll("[data-open-picker]")) b.addEventListener("click", openPicker);
     addEventListener("keydown", (e) => {
+      if (menuOpen) return;
       if (e.code === "Tab" && !pickerOpen) { e.preventDefault(); openPicker(); }
       else if (e.code === "Escape" && pickerOpen) { e.preventDefault(); closePicker(false); }
       else if (e.code === "Tab" && pickerOpen) { e.preventDefault(); closePicker(true); }
@@ -1227,8 +1269,10 @@
 
   // ---------- update ----------
   function update(rawDt) {
-    if (pickerOpen) { pressed.clear(); return; }
+    if (pickerOpen || menuOpen) { pressed.clear(); return; }
     if (pressed.has("restart")) { reset(); pressed.clear(); return; }
+    // after a K.O. the game goes back to the select screen
+    if (state.over && state.overT > 3.2) { matchLive = false; openMenu(); return; }
 
     // KO slow motion
     let dt = rawDt;
@@ -1828,7 +1872,7 @@
       ctx.fillStyle = "rgba(18, 13, 28, 0.45)";
       ctx.fillRect(0, 0, W, H);
       const won = state.winner === state.p1;
-      drawCenterText(won ? "YOU WIN" : "YOU LOSE", "K.O.  ·  PRESS R OR TAP RESTART", won ? "#ffd23f" : "#e4483f");
+      drawCenterText(won ? "YOU WIN" : "YOU LOSE", "K.O.  ·  R = REMATCH", won ? "#ffd23f" : "#e4483f");
     } else if (state.over) {
       drawCenterText("K.O.", null, "#e4483f");
     }
@@ -1889,6 +1933,7 @@
     .then(() => {
       status.hidden = true;
       requestAnimationFrame((t) => { last = t; frame(t); });
+      openMenu();                   // every visit starts on the select screen
     })
     .catch((err) => { status.textContent = err.message; });
 })();
