@@ -48,13 +48,43 @@
     }
   }
 
-  function unlock() {
-    init();
-    if (ctx && ctx.state === "suspended") ctx.resume();
+  // iPhone: Web Audio is "ambient" by default, so the ring/silent switch mutes it and screen
+  // recordings capture nothing. Ask for the "playback" session (Safari 17+), and on older iOS
+  // keep a silent <audio> element looping, which moves the page into the playback category too.
+  let keepAlive = null;
+  function silentWav() {
+    const n = 800, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, "data"); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
   }
-  addEventListener("pointerdown", unlock, { capture: true });
-  addEventListener("keydown", unlock, { capture: true });
-  addEventListener("touchend", unlock, { capture: true });
+  function playbackSession() {
+    try { if (navigator.audioSession) { navigator.audioSession.type = "playback"; return; } } catch (e) {}
+    if (keepAlive || !/iP(hone|ad|od)|Macintosh/.test(navigator.userAgent) || !("ontouchend" in document)) return;
+    keepAlive = new Audio(silentWav());
+    keepAlive.loop = true;
+    keepAlive.setAttribute("playsinline", "");
+    keepAlive.play().catch(() => { keepAlive = null; });
+  }
+
+  function unlock() {
+    playbackSession();
+    init();
+    // "interrupted" happens on iOS after a call, Siri or switching apps
+    if (ctx && ctx.state !== "running" && !muted) ctx.resume().catch(() => {});
+  }
+  // touch only counts as a user gesture on pointerup/touchend/click, not pointerdown
+  for (const ev of ["pointerdown", "pointerup", "touchend", "click", "keydown"]) {
+    addEventListener(ev, unlock, { capture: true, passive: true });
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!ctx) return;
+    if (document.hidden) ctx.suspend().catch(() => {});
+    else if (!muted) ctx.resume().catch(() => {});
+  });
 
   function ready() { return ctx && ctx.state === "running" && !muted; }
 
