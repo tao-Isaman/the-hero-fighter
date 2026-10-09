@@ -1,0 +1,180 @@
+<meta charset="utf-8">
+<title>คมแฝก Kom Faek</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Kanit:wght@400;600;800&display=swap">
+<style>
+  /* Layout: one dusk-lit cabinet — title plate, 16:9 pixel screen, key legend underneath. */
+  :root {
+    --night: #120d1c;      /* page ground, outlines */
+    --plum: #1d1530;       /* cabinet panel */
+    --dusk: #3a2240;       /* bezel, empty bar */
+    --ember: #e4483f;      /* danger, KO */
+    --gold: #ffd23f;       /* accent: chedi gold */
+    --paper: #f3e9d2;      /* text */
+    --muted: #a99bb8;      /* secondary text */
+    --font-display: "Kanit", "Noto Sans Thai", system-ui, sans-serif;
+    --font-pixel: "Silkscreen", ui-monospace, monospace;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 80% at 50% 0%, var(--plum), var(--night) 70%);
+    background-color: var(--night);
+    color: var(--paper);
+    font-family: var(--font-display);
+    padding-inline: 16px;
+    padding-block: 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  header {
+    width: min(100%, 1100px);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+  }
+  h1 {
+    margin: 0;
+    font-weight: 800;
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    letter-spacing: 0.01em;
+    line-height: 1;
+    color: var(--gold);
+    text-wrap: balance;
+  }
+  h1 small {
+    font-family: var(--font-pixel);
+    font-size: 0.42em;
+    color: var(--paper);
+    letter-spacing: 0.08em;
+    margin-left: 10px;
+    vertical-align: middle;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .screen {
+    position: relative;
+    width: min(100%, 1100px, calc((100dvh - 210px) * 16 / 9));
+    min-width: min(100%, 320px);
+    aspect-ratio: 16 / 9;
+    max-width: 100%;
+    background: var(--night);
+    border: 3px solid var(--dusk);
+    box-shadow: 0 0 0 3px var(--night), 0 18px 50px rgba(0, 0, 0, 0.55);
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    outline: none;
+  }
+  canvas:focus-visible { box-shadow: 0 0 0 2px var(--gold); }
+  #status {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: var(--font-pixel);
+    color: var(--paper);
+    font-size: 0.9rem;
+  }
+  #status[hidden] { display: none; }
+  .legend {
+    width: min(100%, 1100px);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  kbd {
+    font-family: var(--font-pixel);
+    font-size: 0.75rem;
+    color: var(--night);
+    background: var(--paper);
+    border-bottom: 3px solid var(--muted);
+    padding: 2px 6px 1px;
+    border-radius: 3px;
+  }
+  .legend .crit { color: var(--gold); }
+
+  /* touch controls: shown only on coarse pointers */
+  .pad {
+    display: none;
+    width: min(100%, 1100px);
+    justify-content: space-between;
+    gap: 12px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  .pad .group { display: flex; gap: 10px; }
+  .pad button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 3px solid var(--dusk);
+    background: var(--plum);
+    color: var(--paper);
+    font-family: var(--font-pixel);
+    font-size: 0.8rem;
+    touch-action: none;
+  }
+  .pad button.atk { background: var(--ember); border-color: var(--night); width: 76px; height: 76px; }
+  .pad button.on { filter: brightness(1.4); }
+  .pad .restart { width: auto; border-radius: 10px; padding: 0 10px; height: 40px; align-self: center; }
+  @media (pointer: coarse) {
+    .pad { display: flex; }
+    .legend .keys { display: none; }
+    .screen { width: min(100%, 1100px); }
+  }
+</style>
+
+<header>
+  <h1>คมแฝก <small>KOM FAEK</small></h1>
+  <p>กัลป์ เกรียงไกร ปะทะยักษ์ป่า · ห้องซ้อมคอมโบ</p>
+</header>
+
+<div class="screen">
+  <canvas id="game" tabindex="0" aria-label="เกมคมแฝก: ใช้ลูกศรเดิน กระโดด และ J เพื่อโจมตี"></canvas>
+  <div id="status">LOADING…</div>
+</div>
+
+<ul class="legend">
+  <li class="keys"><kbd>←</kbd><kbd>→</kbd> เดิน</li>
+  <li class="keys"><kbd>↑</kbd> / <kbd>Space</kbd> กระโดด</li>
+  <li class="keys"><kbd>J</kbd> / <kbd>X</kbd> ฟาดคมแฝก กดต่อเนื่องได้ 5 จังหวะ</li>
+  <li class="keys"><kbd>R</kbd> เริ่มใหม่</li>
+  <li class="crit">พื้นแดง เลขเหลือง = คริติคอล</li>
+</ul>
+
+<div class="pad" aria-label="ปุ่มควบคุมแบบสัมผัส">
+  <div class="group">
+    <button data-act="left" aria-label="เดินซ้าย">◀</button>
+    <button data-act="right" aria-label="เดินขวา">▶</button>
+  </div>
+  <button class="restart" data-act="restart">RESTART</button>
+  <div class="group">
+    <button data-act="jump" aria-label="กระโดด">JUMP</button>
+    <button class="atk" data-act="attack" aria-label="โจมตี">HIT</button>
+  </div>
+</div>
+
+<script src="assets/manifest.js"></script>
+<script src="game.js"></script>
