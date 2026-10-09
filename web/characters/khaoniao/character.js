@@ -91,7 +91,7 @@ window.CHARACTERS.khaoniao = {
     },
     knee: {
       // 3 frames: take off, flying knee (held while airborne), landing
-      name: "เข่าพญาไฟ", desc: "กระโดดแทงเข่า 4 ครั้ง ไฟลุกตามพื้น", cd: 8, dur: 0.55,
+      name: "เข่าพญาไฟ", desc: "ไม้ตาย กระโดดแทงเข่า 4 ครั้ง ไฟลุกตามพื้น", cd: 14, ult: true, dur: 0.55,
       icon: "groundfire", travel: { vx: 280, vy: -520, landHold: 0.2 }, assist: 60,
       trail: { every: 0.05, fx: [{ key: "groundfire", at: "ground", anchor: "bottom", life: 0.8, s0: 0.8, s1: 1 }] },
       hits: [0.14, 0.3, 0.46, 0.62].map((at, i) => ({
