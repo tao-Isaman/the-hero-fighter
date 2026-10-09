@@ -23,7 +23,10 @@ window.MANIFEST = {
   "sunfire": "assets/vfx_sunfire.png",
   "icespear": "assets/vfx_icespear.png",
   "blink": "assets/vfx_blink.png",
-  "blinkrift": "assets/vfx_blinkrift.png"
+  "blinkrift": "assets/vfx_blinkrift.png",
+  "claw": "assets/vfx_claw.png",
+  "clawheavy": "assets/vfx_clawheavy.png",
+  "clawx": "assets/vfx_clawx.png"
  },
  "vfxAnim": {
   "bird": {

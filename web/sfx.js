@@ -159,7 +159,10 @@
       if (!ready()) return;
       const t = ctx.currentTime;
       const dur = 0.09 + power * 0.05;
-      if (kind === "stick") {
+      if (kind === "claw") {
+        // claws: a thin, fast hiss
+        noise(t, { f0: vary(1500), f1: vary(5200), q: 4, dur: dur * 0.8, gain: 0.3 + power * 0.1, attack: 0.02 });
+      } else if (kind === "stick") {
         noise(t, { f0: vary(900), f1: vary(3200), q: 3.5, dur, gain: 0.32 + power * 0.1, attack: 0.03 });
         noise(t + 0.02, { type: "highpass", f0: 3000, f1: 6000, dur: dur * 0.8, gain: 0.08, attack: 0.02 });
       } else {
@@ -168,7 +171,7 @@
       if (power >= 2) noise(t, { type: "lowpass", f0: 500, f1: 220, dur: 0.18, gain: 0.25, attack: 0.04 });
     },
 
-    // contact. kind: "fist" (glove on body), "stick" (hard wood on body), or an element
+    // contact. kind: "fist" (glove on body), "stick" (hard wood on body), "claw", or an element
     // layered on a punch: "zap" (lightning), "ice", "fire"
     hit(kind = "fist", power = 0, crit = false) {
       if (!ready()) return;
@@ -189,7 +192,12 @@
         noise(t, { type: "lowpass", f0: vary(2600), f1: 700, dur: 0.06 + power * 0.02, gain: 0.85, drive: true });
         noise(t, { f0: vary(850), q: 1.2, dur: 0.09 + power * 0.03, gain: 0.6 });
       }
-      if (kind === "zap") {
+      if (kind === "claw") {
+        // claws tearing: three quick raking scrapes on top of the body hit
+        for (let i = 0; i < 3; i++) {
+          noise(t + i * 0.028, { f0: vary(3800), f1: 1300, q: 3, dur: 0.05, gain: 0.45, drive: true });
+        }
+      } else if (kind === "zap") {
         // lightning: a burst of crackles and a buzzing saw
         for (let i = 0; i < 6; i++) noise(t + i * 0.025 + Math.random() * 0.01, { type: "highpass", f0: vary(2500, 0.3), dur: 0.02, gain: 0.5, drive: true });
         tone(t, { type: "sawtooth", f0: 220, f1: 90, dur: 0.25, gain: 0.25, drive: true, wet: 0.5 });

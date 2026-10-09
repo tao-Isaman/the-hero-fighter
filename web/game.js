@@ -443,6 +443,7 @@
 
   function startAttack(f, idx) {
     const atkDef = attacksOf(f)[idx];
+    if (atkDef.blink) blinkBehind(f, atkDef.blink);
     sfx.swing(weaponOf(f, atkDef), atkDef.power || 0);
     if (f.buffT > 0 && f.buff) addSparks(f.x + f.facing * 40, f.y - 70, 6, f.buff.color || "#ffb02e");
     f.combo = idx;
@@ -472,6 +473,7 @@
   function resolveAttackHit(f) {
     const o = f.opp;
     const atk = curAttack(f);
+    if (atk.fx) spawnFx(f, atk.fx);      // slash marks show even on a miss
     const dx = (o.x - f.x) * f.facing;
     if (o.hp <= 0) return;
     if (atk.plunge) {
@@ -649,21 +651,7 @@
     // blink: vanish and reappear on the far side of the opponent
     if (def.blink && !sk.blinked && kk >= (def.blink.at || 0)) {
       sk.blinked = true;
-      const o = f.opp;
-      if (Math.abs(o.x - f.x) <= def.blink.range) {
-        const side = Math.sign(o.x - f.x) || f.facing;
-        const from = f.x;
-        const to = clamp(o.x + side * def.blink.behind, 40, M.worldWidth - 40);
-        for (let i = 1; i <= 5; i++) {
-          f.ghosts.push({ anim: f.anim, frame: 0, x: from + (to - from) * (i / 6), y: f.y, facing: f.facing, born: state.time - 0.02 * (6 - i) });
-        }
-        spawnFx(f, def.blink.fxOut || def.blink.fx);      // where he vanishes
-        f.x = to;
-        f.facing = Math.sign(o.x - f.x) || -side;
-        sk.dashTo = null;
-        spawnFx(f, def.blink.fxIn || def.blink.fx);       // where he reappears
-        sfx.swing("fist", 2);
-      }
+      if (blinkBehind(f, def.blink)) sk.dashTo = null;
     }
     // pull: drag the opponent in while the field is up (no damage)
     if (def.pull) {
@@ -765,6 +753,24 @@
     sfx.clang();
     addPopup(f.x, f.y - 120, "COUNTER", false, { skill: true });
     addSparks(f.x + f.facing * 24, f.y - 70, 18, "#ffd23f");
+  }
+
+  // Vanish and reappear on the far side of the opponent, facing them. b: { behind, range, fx, fxOut, fxIn }
+  function blinkBehind(f, b) {
+    const o = f.opp;
+    if (Math.abs(o.x - f.x) > (b.range ?? 430)) return false;
+    const side = Math.sign(o.x - f.x) || f.facing;
+    const from = f.x;
+    const to = clamp(o.x + side * (b.behind ?? 60), 40, M.worldWidth - 40);
+    for (let i = 1; i <= 5; i++) {
+      f.ghosts.push({ anim: f.anim, frame: 0, x: from + (to - from) * (i / 6), y: f.y, facing: f.facing, born: state.time - 0.02 * (6 - i) });
+    }
+    spawnFx(f, b.fxOut || b.fx);        // where they vanish
+    f.x = to;
+    f.facing = Math.sign(o.x - f.x) || -side;
+    spawnFx(f, b.fxIn || b.fx);         // where they reappear
+    sfx.swing("fist", 2);
+    return true;
   }
 
   // Spawn effects described in character data (see characters/README.md).
