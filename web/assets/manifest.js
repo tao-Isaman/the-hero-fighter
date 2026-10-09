@@ -13,6 +13,56 @@ window.MANIFEST = {
   "yama": "assets/vfx_yama.png",
   "storm": "assets/vfx_storm.png"
  },
+ "vfxAnim": {
+  "bird": {
+   "image": "assets/vfx_bird_anim.png",
+   "fps": 16,
+   "loop": true,
+   "frameW": 129,
+   "frameH": 96,
+   "frames": 9
+  },
+  "naga": {
+   "image": "assets/vfx_naga_anim.png",
+   "fps": 18,
+   "loop": true,
+   "frameW": 168,
+   "frameH": 78,
+   "frames": 9
+  },
+  "tiger": {
+   "image": "assets/vfx_tiger_anim.png",
+   "fps": 18,
+   "loop": true,
+   "frameW": 149,
+   "frameH": 84,
+   "frames": 6
+  },
+  "rocks": {
+   "image": "assets/vfx_rocks_anim.png",
+   "fps": 0,
+   "loop": false,
+   "frameW": 148,
+   "frameH": 103,
+   "frames": 9
+  },
+  "yama": {
+   "image": "assets/vfx_yama_anim.png",
+   "fps": 0,
+   "loop": false,
+   "frameW": 158,
+   "frameH": 120,
+   "frames": 9
+  },
+  "storm": {
+   "image": "assets/vfx_storm_anim.png",
+   "fps": 16,
+   "loop": true,
+   "frameW": 137,
+   "frameH": 154,
+   "frames": 9
+  }
+ },
  "portraitCrop": {
   "x": 92,
   "y": 50,
@@ -238,7 +288,7 @@ window.MANIFEST = {
     "duration": 0.6,
     "bottoms": [
      169,
-     159,
+     166,
      222
     ]
    }

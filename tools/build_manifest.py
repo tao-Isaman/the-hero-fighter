@@ -32,10 +32,13 @@ ANIMS = {
     "sk_quake": dict(duration=0.48),
     "sk_storm": dict(duration=0.95),
     # the leap: rising, falling and landed poses pinned by their feet
-    "sk_yama": dict(duration=0.6, bottoms=[169, 159, 222]),
+    "sk_yama": dict(duration=0.6, bottoms=[169, 166, 222]),
 }
 
 VFX = ["bird", "naga", "chakra", "tiger", "rocks", "yama", "storm"]
+# animated effect sheets from tools/fetch_vfx.py: key -> (fps, loop)
+VFX_ANIM = {"bird": (16, True), "naga": (18, True), "tiger": (18, True),
+            "rocks": (0, False), "yama": (0, False), "storm": (16, True)}
 
 anims = {}
 for name, cfg in ANIMS.items():
@@ -52,12 +55,22 @@ for name, cfg in ANIMS.items():
         a["bottoms"] = [strip.crop((i * FRAME, 0, (i + 1) * FRAME, FRAME)).getbbox()[3] for i in range(n)]
     anims[name] = a
 
+import os
+
+vfx_anim = {}
+for key, (fps, loop) in VFX_ANIM.items():
+    meta = f"web/assets/vfx_{key}_anim.json"
+    if os.path.exists(meta):
+        info = json.load(open(meta))
+        vfx_anim[key] = {"image": f"assets/vfx_{key}_anim.png", "fps": fps, "loop": loop, **info}
+
 manifest = {
     "worldWidth": 2600,
     "groundY": 318,
     "background": "assets/bg_village.png",
     "portrait": "assets/kan_portrait.png",
     "vfx": {k: f"assets/vfx_{k}.png" for k in VFX},
+    "vfxAnim": vfx_anim,
     "portraitCrop": {"x": 92, "y": 50, "w": 120, "h": 120},
     "player": {"scale": 0.62, "anims": anims, "reach": [96, 90, 104, 98, 118]},
     "monster": {"image": "assets/monster_yak.png", "anchorX": 84, "anchorY": 160, "scale": 0.85,

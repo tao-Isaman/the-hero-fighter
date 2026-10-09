@@ -55,6 +55,7 @@
     const names = new Set([M.background, M.portrait, M.monster.image]);
     for (const a of Object.values(M.player.anims)) names.add(a.image);
     for (const v of Object.values(M.vfx)) names.add(v);
+    for (const v of Object.values(M.vfxAnim)) names.add(v.image);
     return Promise.all([...names].map((src) => new Promise((res, rej) => {
       const img = new Image();
       img.onload = () => { images[src] = img; res(); };
@@ -213,6 +214,7 @@
       queued: false, hitDone: false, sinceAttack: 99,
       hurtT: 0, invulnT: 0,
       skill: null,          // skill being cast: { def, t, hitIdx, ... }
+      ghosts: [], ghostT: 0, // afterimages left behind while casting
     };
   }
 
@@ -838,30 +840,37 @@
     state.shots = state.shots.filter((s) => !s.done);
   }
 
+  // Effects are PixelLab sprite sheets (M.vfxAnim) played frame by frame, with a little
+  // scale/fade tweening on top; keys without a sheet fall back to the still image.
   function drawVfx(camX, layer) {
     for (const v of state.vfx) {
       if ((v.key === "storm") !== (layer === "back")) continue;
-      const img = images[M.vfx[v.key]];
+      const anim = M.vfxAnim[v.key];
+      const img = images[anim ? anim.image : M.vfx[v.key]];
       if (!img) continue;
+      const fw = anim ? anim.frameW : img.width, fh = anim ? anim.frameH : img.height;
       const k = v.t / v.life;
+      let frame = 0;
+      if (anim) frame = anim.loop ? Math.floor(v.t * anim.fps) % anim.frames : Math.min(anim.frames - 1, Math.floor(k * anim.frames));
       const ease = 1 - Math.pow(1 - Math.min(1, k * 1.6), 3);
       const sc = v.s0 + (v.s1 - v.s0) * ease;
-      let alpha = k < 0.12 ? k / 0.12 : k > 0.65 ? 1 - (k - 0.65) / 0.35 : 1;
-      if (v.flicker) alpha *= 0.82 + 0.18 * Math.sin(v.t * 60);
+      // effects appear at once (they spawn on the impact freeze), then fade out
+      let alpha = k < 0.1 ? 0.6 + (k / 0.1) * 0.4 : k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+      if (v.flicker && !anim) alpha *= 0.82 + 0.18 * Math.sin(v.t * 60);
       ctx.save();
       ctx.translate(Math.round(v.x - camX), Math.round(v.y));
       if (v.rot) ctx.rotate(v.rot);
-      const sx = (v.stretch ? sc : Math.max(0.4, sc)) * v.flip * (v.key === "storm" && Math.floor(v.t * 16) % 2 ? -1 : 1);
+      const sx = (v.stretch ? sc : Math.max(0.4, sc)) * v.flip;
       const sy = v.stretch ? Math.min(1.2, 0.7 + sc * 0.3) : sc;
       ctx.scale(sx, sy);
-      const ox = v.anchor === "left" ? 0 : -img.width / 2;
-      const oy = v.anchor === "bottom" ? -img.height : -img.height / 2;
+      const ox = v.anchor === "left" ? 0 : -fw / 2;
+      const oy = v.anchor === "bottom" ? -fh : -fh / 2;
       ctx.globalAlpha = alpha;
-      ctx.drawImage(img, ox, oy);
+      ctx.drawImage(img, frame * fw, 0, fw, fh, ox, oy, fw, fh);
       if (v.glow) {
         ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = alpha * 0.35;
-        ctx.drawImage(img, ox, oy);
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.drawImage(img, frame * fw, 0, fw, fh, ox, oy, fw, fh);
       }
       ctx.restore();
     }
@@ -1150,6 +1159,19 @@
       frame = attackFrame(a, p.t);
     } else {
       frame = Math.floor(clamp(p.t / a.duration, 0, 0.999) * a.frames);
+    }
+    // afterimages: recent skill poses fading out behind Kan
+    if (p.skill) {
+      p.ghostT -= 1 / 60;
+      if (p.ghostT <= 0) {
+        p.ghostT = 0.035;
+        p.ghosts.push({ anim: p.anim, frame, x: p.x, y: p.y, facing: p.facing, born: state.time });
+      }
+    }
+    p.ghosts = p.ghosts.filter((g) => state.time - g.born < 0.16);
+    for (const g of p.ghosts) {
+      const age = (state.time - g.born) / 0.16;
+      drawFrame(M.player.anims[g.anim], g.frame, g.x - camX, g.y, g.facing, M.player.scale, 0.35 * (1 - age));
     }
     drawShadow(p.x - camX, GROUND_Y, 26 - Math.min(14, (GROUND_Y - p.y) / 8));
     const blink = p.invulnT > 0 && Math.floor(p.invulnT * 20) % 2 === 0 ? 0.45 : 1;
