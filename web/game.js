@@ -292,7 +292,7 @@
       sinceAttack: 99, lastCombo: -1,
       invulnT: 0, flash: 0, hitStun: 0, downT: 0, downMax: 0, stunT: 0,
       launched: false, landDown: 0,
-      skill: null, ghosts: [], ghostT: 0,
+      skill: null, ghosts: [], ghostT: 0, buffT: 0, buff: null,
       loadout, cooldowns: [0, 0, 0],
       comboCount: 0, comboTimer: 0,
       input: ctrl === "human" ? { keys, pressed } : { keys: new Set(), pressed: new Set() },
@@ -355,7 +355,8 @@
 
     const [lo, hi] = o.dmg;
     const crit = Math.random() < (o.crit ?? 0.2);
-    const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1));
+    const buffed = attacker.buffT > 0 && attacker.buff;
+    const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1) * (buffed ? buffed.dmg : 1));
     target.hp = Math.max(0, target.hp - dmg);
     target.flash = 0.75;
 
@@ -386,12 +387,16 @@
     attacker.comboTimer = 1.6;
     state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
     state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
-    sfx.hit(o.sfx || weaponOf(attacker, o), o.power || 0, crit);
+    sfx.hit(o.sfx || (buffed ? "fire" : weaponOf(attacker, o)), o.power || 0, crit);
     const hy = target.y - 112;
     addPopup(target.x + rand(-10, 10), hy, dmg, crit, { skill: !!o.skill, enemy: target.ctrl === "human" });
     addSparks(target.x - o.dir * 14, hy + 34, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
     if (o.power) addSparks(target.x - o.dir * 14, hy + 34, 8, o.sparkColor2 || "#ff6a2b");
     if (o.power === 2) addShockwave(target.x, GROUND_Y);
+    if (buffed) {
+      for (const [n, color] of buffed.hitSparks || []) addSparks(target.x - o.dir * 10, hy + 30, n, color);
+      if (buffed.hitFx) addVfx(buffed.hitFx, target.x - o.dir * 6, hy + 40, { life: 0.4, s0: 0.5, s1: 0.9, flip: o.dir });
+    }
 
     if (target.hp <= 0) knockOut(target, attacker);
     return true;
@@ -432,6 +437,7 @@
   function startAttack(f, idx) {
     const atkDef = attacksOf(f)[idx];
     sfx.swing(weaponOf(f, atkDef), atkDef.power || 0);
+    if (f.buffT > 0 && f.buff) addSparks(f.x + f.facing * 40, f.y - 70, 6, f.buff.color || "#ffb02e");
     f.combo = idx;
     f.anim = attacksOf(f)[idx].anim;
     f.t = 0;
@@ -508,10 +514,12 @@
     else if (!def.counter) sfx.swing(weaponOf(f, def), 1);
     if (def.ult) f.invulnT = Math.max(f.invulnT, 0.5);
     if (def.leap) {
-      f.vy = -720;
+      const L = typeof def.leap === "object" ? def.leap : {};
+      f.vy = L.vy ?? -720;
       f.onGround = false;
-      f.vx = f.facing * 90;
+      f.vx = f.facing * (L.vx ?? 90);
     }
+    if (def.buff) f.buffT = 0;            // a fresh cast restarts the buff once it lands
     if (def.travel) {
       f.vy = def.travel.vy;
       f.onGround = false;
@@ -548,9 +556,28 @@
     if (def.leap) {
       // rise, hang briefly, then dive into the ground
       if (!sk.landed) {
-        if (f.vy > -80 && sk.phase === 0) sk.phase = 1;
-        if (sk.phase === 1) f.vy = Math.max(f.vy, 1100);
-        f.vy += GRAVITY * dt;
+        const L = typeof def.leap === "object" ? def.leap : {};
+        if (f.vy > -80 && sk.phase === 0) {
+          sk.phase = 1;
+          if (L.dive) {
+            // aim a straight diagonal strike at the opponent, kept close to 45 degrees
+            const o = f.opp;
+            const tFall = Math.max(0.05, (GROUND_Y - f.y) / L.dive);
+            f.facing = Math.sign(o.x - f.x) || f.facing;
+            sk.diveVx = f.facing * clamp(Math.abs(o.x - f.x) / tFall, L.dive * 0.6, L.dive * 1.3);
+          }
+        }
+        if (sk.phase === 1 && L.dive) {
+          f.vx = sk.diveVx;
+          f.vy = L.dive;
+          if (def.trail) {
+            sk.trailT -= dt;
+            if (sk.trailT <= 0) { sk.trailT = def.trail.every; spawnFx(f, def.trail.fx); }
+          }
+        } else {
+          if (sk.phase === 1) f.vy = Math.max(f.vy, 1100);
+          f.vy += GRAVITY * dt;
+        }
         f.x += f.vx * dt;
         f.y += f.vy * dt;
         if (f.y >= GROUND_Y) {
@@ -611,6 +638,43 @@
       return true;
     }
 
+    const kk = (sk.t - t0) / (def.dur || 1);
+    // blink: vanish and reappear on the far side of the opponent
+    if (def.blink && !sk.blinked && kk >= (def.blink.at || 0)) {
+      sk.blinked = true;
+      const o = f.opp;
+      if (Math.abs(o.x - f.x) <= def.blink.range) {
+        const side = Math.sign(o.x - f.x) || f.facing;
+        const from = f.x;
+        const to = clamp(o.x + side * def.blink.behind, 40, M.worldWidth - 40);
+        for (let i = 1; i <= 5; i++) {
+          f.ghosts.push({ anim: f.anim, frame: 0, x: from + (to - from) * (i / 6), y: f.y, facing: f.facing, born: state.time - 0.02 * (6 - i) });
+        }
+        if (def.blink.fx) { spawnFx(f, def.blink.fx); }
+        f.x = to;
+        f.facing = Math.sign(o.x - f.x) || -side;
+        sk.dashTo = null;
+        if (def.blink.fx) spawnFx(f, def.blink.fx);
+        sfx.swing("fist", 2);
+      }
+    }
+    // pull: drag the opponent in while the field is up (no damage)
+    if (def.pull) {
+      const o = f.opp, d = o.x - f.x;
+      if (Math.abs(d) <= def.pull.range && Math.abs(d) > def.pull.stopAt && o.hp > 0 && !(o.skill && o.skill.def.ult)) {
+        o.x -= Math.sign(d) * def.pull.speed * dt;
+        if (chance(0.5)) addSparks(o.x - Math.sign(d) * 10, o.y - rand(30, 100), 1, def.pull.color || "#8fd0ff");
+      }
+    }
+    // buff: power up for a while; the aura follows the fighter
+    if (def.buff && !sk.buffed && kk >= (def.buff.at || 0)) {
+      sk.buffed = true;
+      f.buffT = def.buff.dur;
+      f.buff = def.buff;
+      if (def.buff.aura) spawnFx(f, [{ ...def.buff.aura, life: def.buff.dur, follow: true, buffAura: true }]);
+      sfx.boom(0.8);
+    }
+
     // ground skills are rooted unless they drift or travel forward
     f.vx = def.travel && !f.onGround ? f.facing * def.travel.vx : def.drift ? f.facing * def.drift : 0;
     f.x += f.vx * dt;
@@ -656,7 +720,7 @@
       spawnFx(f, [{ ...def.aura, life: def.dur + 0.15, follow: true, back: true }]);
     }
 
-    const holding = def.shot && state.shots.some((s) => s.owner === f);   // wait to catch the thrown weapon
+    const holding = def.shot && !def.shot.straight && state.shots.some((s) => s.owner === f);   // wait to catch the thrown weapon
     if (def.travel) {
       // a flying strike ends a moment after it lands, whatever its clip length
       if (sk.landedT !== undefined) {
@@ -709,6 +773,7 @@
           s0: e.s0 ?? 1, s1: e.s1 ?? 1, rot: (e.rot || 0) * dir, flip: dir,
           anchor: e.anchor || "center", stretch: !!e.stretch, back: !!e.back,
           follow: e.follow ? f : null, opacity: e.opacity ?? 1,
+          fdy: e.follow ? y - f.y : undefined, buffAura: !!e.buffAura, glow: e.glow ?? true,
         });
       }
       if (e.shockwave) addShockwave(x, GROUND_Y);
@@ -722,7 +787,13 @@
       const f = s.owner;
       s.rot += dt * 26;
       const step = s.def.speed * dt;
-      if (s.out) {
+      if (s.def.straight) {
+        // flies straight to the edge of the stage and never comes back
+        s.x += s.dir * step;
+        s.dist += step;
+        if (s.dist >= s.def.range || s.x < -200 || s.x > M.worldWidth + 200) s.done = true;
+        if (s.def.trail && chance(0.6)) addSparks(s.x - s.dir * 50, s.y + rand(-6, 6), 1, s.def.trail);
+      } else if (s.out) {
         s.x += s.dir * step;
         s.dist += step;
         if (s.dist >= s.def.range) s.out = false;
@@ -751,6 +822,10 @@
     f.t += dt;
     f.sinceAttack += dt;
     f.invulnT = Math.max(0, f.invulnT - dt);
+    if (f.buffT > 0) {
+      f.buffT -= dt;
+      if (f.buffT <= 0 || f.hp <= 0) { f.buffT = 0; f.buff = null; state.vfx = state.vfx.filter((v) => !(v.follow === f && v.buffAura)); }
+    }
     f.flash = Math.max(0, f.flash - dt * 6);
     for (let i = 0; i < 3; i++) f.cooldowns[i] = Math.max(0, f.cooldowns[i] - dt);
     f.comboTimer -= dt;
@@ -910,6 +985,10 @@
   // The AI presses the same buttons a player would, a few times a second.
   function skillRange(def) {
     if (def.shot) return def.shot.range * 0.8;
+    if (def.blink) return def.blink.range;
+    if (def.pull) return def.pull.range;
+    if (def.buff) return 9999;
+    if (def.leap && typeof def.leap === "object" && def.leap.dive) return 420;
     if (def.leap) return def.hit.reach + 80;
     if (def.counter) return 110;
     if (def.travel) return 220;
@@ -1184,7 +1263,7 @@
       v.t += dt;
       v.x += v.vx * dt;
       v.y += v.vy * dt;
-      if (v.follow) v.x = v.follow.x;
+      if (v.follow) { v.x = v.follow.x; if (v.fdy !== undefined) v.y = v.follow.y + v.fdy; }
     }
     state.vfx = state.vfx.filter((v) => v.t < v.life);
     for (const pp of state.popups) pp.t += dt;
@@ -1516,6 +1595,18 @@
   function drawShots(camX) {
     for (const s of state.shots) {
       const img = images[M.vfx[s.def.fx]];
+      if (s.def.straight) {
+        // a spear: no spin, pointing the way it flies, with a bright additive pass
+        ctx.save();
+        ctx.translate(Math.round(s.x - camX), Math.round(s.y));
+        ctx.scale(s.dir * (s.def.scale || 1), s.def.scale || 1);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = 0.45;
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+        continue;
+      }
       ctx.save();
       ctx.translate(Math.round(s.x - camX), Math.round(s.y));
       ctx.rotate(s.rot * s.dir);

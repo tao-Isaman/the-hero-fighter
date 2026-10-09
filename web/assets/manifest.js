@@ -16,7 +16,12 @@ window.MANIFEST = {
   "blades": "assets/vfx_blades.png",
   "buffalo": "assets/vfx_buffalo.png",
   "groundfire": "assets/vfx_groundfire.png",
-  "guard": "assets/vfx_guard.png"
+  "guard": "assets/vfx_guard.png",
+  "magnet": "assets/vfx_magnet.png",
+  "ramasun": "assets/vfx_ramasun.png",
+  "wind": "assets/vfx_wind.png",
+  "sunfire": "assets/vfx_sunfire.png",
+  "icespear": "assets/vfx_icespear.png"
  },
  "vfxAnim": {
   "bird": {
@@ -90,17 +95,30 @@ window.MANIFEST = {
    "frameW": 125,
    "frameH": 84,
    "frames": 9
+  },
+  "magnet": {
+   "image": "assets/vfx_magnet_anim.png",
+   "fps": 16,
+   "loop": true,
+   "frameW": 96,
+   "frameH": 96,
+   "frames": 8
+  },
+  "ramasun": {
+   "image": "assets/vfx_ramasun_anim.png",
+   "fps": 0,
+   "loop": false,
+   "frameW": 160,
+   "frameH": 151,
+   "frames": 4
+  },
+  "sunfire": {
+   "image": "assets/vfx_sunfire_anim.png",
+   "fps": 12,
+   "loop": true,
+   "frameW": 111,
+   "frameH": 154,
+   "frames": 9
   }
- },
- "monster": {
-  "image": "assets/monster_yak.png",
-  "anchorX": 84,
-  "anchorY": 160,
-  "scale": 0.85,
-  "artFacing": 1,
-  "hp": 320,
-  "speed": 46,
-  "hitHeight": 115,
-  "barHeight": 150
  }
 };

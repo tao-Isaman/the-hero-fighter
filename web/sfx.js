@@ -168,7 +168,8 @@
       if (power >= 2) noise(t, { type: "lowpass", f0: 500, f1: 220, dur: 0.18, gain: 0.25, attack: 0.04 });
     },
 
-    // contact. kind: "fist" (glove on body) or "stick" (hard wood on body)
+    // contact. kind: "fist" (glove on body), "stick" (hard wood on body), or an element
+    // layered on a punch: "zap" (lightning), "ice", "fire"
     hit(kind = "fist", power = 0, crit = false) {
       if (!ready()) return;
       const t = ctx.currentTime;
@@ -187,6 +188,17 @@
         // leather on flesh: a wide mid slap and a dull body smack
         noise(t, { type: "lowpass", f0: vary(2600), f1: 700, dur: 0.06 + power * 0.02, gain: 0.85, drive: true });
         noise(t, { f0: vary(850), q: 1.2, dur: 0.09 + power * 0.03, gain: 0.6 });
+      }
+      if (kind === "zap") {
+        // lightning: a burst of crackles and a buzzing saw
+        for (let i = 0; i < 6; i++) noise(t + i * 0.025 + Math.random() * 0.01, { type: "highpass", f0: vary(2500, 0.3), dur: 0.02, gain: 0.5, drive: true });
+        tone(t, { type: "sawtooth", f0: 220, f1: 90, dur: 0.25, gain: 0.25, drive: true, wet: 0.5 });
+      } else if (kind === "ice") {
+        // ice: a glassy shatter on top of the impact
+        for (const f of [2300, 3100, 4200, 5600]) tone(t + Math.random() * 0.02, { type: "triangle", f0: vary(f), f1: f * 0.9, dur: 0.18, gain: 0.08, wet: 0.5 });
+        noise(t, { type: "highpass", f0: 4000, f1: 8000, dur: 0.2, gain: 0.35, wet: 0.5 });
+      } else if (kind === "fire") {
+        noise(t, { type: "bandpass", f0: 700, f1: 2400, q: 0.7, dur: 0.25, gain: 0.35, attack: 0.02, wet: 0.3 });
       }
       if (heavy) {
         // sub boom and a crunchy tail for finishers and crits

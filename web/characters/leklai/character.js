@@ -29,9 +29,12 @@ window.CHARACTERS.leklai = {
     air2: { image: "sprites/air2.png", duration: 0.24, playFor: 0.7, hitAt: 0.4, bottoms: "auto" },
     air4: { image: "sprites/air4.png", duration: 0.34, playFor: 0.7, hitAt: 0.55, bottoms: "auto" },
 
-    sk_ironfist: { image: "sprites/sk_ironfist.png" },
-    sk_thunderkick: { image: "sprites/sk_thunderkick.png" },
-    sk_tornado: { image: "sprites/sk_tornado.png" },
+    sk_blink: { image: "sprites/sk_blink.png" },
+    sk_magnet: { image: "sprites/sk_magnet.png" },
+    sk_ramasun: { image: "sprites/sk_ramasun.png" },
+    sk_hanuman: { image: "sprites/sk_hanuman.png", bottoms: "auto" },
+    sk_sun: { image: "sprites/sk_sun.png" },
+    sk_moon: { image: "sprites/sk_moon.png" },
   },
 
   combo: [
@@ -49,32 +52,48 @@ window.CHARACTERS.leklai = {
     { anim: "air4", dmg: [16, 22], crit: 0.3, kb: 120, reach: 118, dir: -1, power: 2 },
   ],
 
-  // Placeholder skills built from his own combo frames until the real ones are made.
   skills: {
-    ironfist: {
-      name: "หมัดเหล็กไหล", desc: "หมัดรัวเร็ว 3 ครั้ง (ท่าชั่วคราว)", cd: 5, dur: 0.5,
-      frames: [0, 0.33, 0.66], loopFrames: true, icon: "fists", assist: 90,
-      hits: [0.2, 0.45, 0.7].map((at, i) => ({
-        at, dmg: [9, 12], reach: 112, power: i === 2 ? 1 : 0, kb: 20, sparkColor: "#bfe9ff",
-        fx: [{ key: "fists", dx: 48, life: 0.22, s0: 0.8, s1: 1 }],
-      })),
+    blink: {
+      name: "ก้าวพริบตา", desc: "วาร์ปไปข้างหลังศัตรูแล้วต่อย 1 ครั้ง", cd: 6, dur: 0.45,
+      frames: [0, 0.3, 0.55], icon: "wind",
+      blink: { at: 0.12, behind: 62, range: 430, fx: [{ sparks: [[10, "#bfe9ff"], [6, "#ffffff"]] }] },
+      hits: [{ at: 0.55, dmg: [22, 30], reach: 108, power: 1, kb: 70, crit: 0.35, sparkColor: "#bfe9ff",
+        fx: [{ key: "fists", dx: 46, life: 0.22, s0: 0.8, s1: 1.05 }] }],
     },
-    thunderkick: {
-      name: "ลูกเตะสายฟ้า", desc: "พุ่งเตะไกล ศัตรูกระเด็น (ท่าชั่วคราว)", cd: 7, dur: 0.5,
-      frames: [0, 0.25, 0.45], icon: "blades", assist: 130, drift: 260,
-      hits: [{ at: 0.45, dmg: [26, 34], reach: 140, power: 2, kb: 160, sparkColor: "#7ff6ff",
-        fx: [{ key: "blades", dx: 50, life: 0.35, s0: 0.8, s1: 1.2 }, { shockwave: true }] }],
+    magnet: {
+      name: "พลังแม่เหล็ก", desc: "สนามแม่เหล็กดูดศัตรูเข้ามาหาตัว ไม่มีดาเมจ", cd: 9, dur: 1.7,
+      frames: [0, 0.1, 0.22], icon: "magnet",
+      pull: { speed: 320, range: 540, stopAt: 78, color: "#9fb8ff" },
+      aura: { key: "magnet", dx: 0, dy: -4, s0: 1.3, s1: 1.7, opacity: 0.85 },
     },
-    tornado: {
-      name: "พายุเหล็กไหล", desc: "ไม้ตาย หมุนตัวเตะกลางอากาศ 3 ครั้ง (ท่าชั่วคราว)", cd: 15, ult: true, dur: 0.9,
-      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 140, assist: 90,
-      aura: { key: "storm", at: "ground", s0: 0.8, s1: 1.2, anchor: "bottom" },
-      hits: [0.25, 0.52, 0.8].map((at, i) => ({
-        at, dmg: i === 2 ? [24, 32] : [16, 22], reach: 140, both: true, power: i === 2 ? 2 : 1,
-        sparkColor: "#bfe9ff", fx: [{ sparks: [[14, "#bfe9ff"], [8, "#7ff6ff"]] }],
-      })),
+    ramasun: {
+      name: "รามสูรขว้างขวาน", desc: "ศอกสั้น วิญญาณรามสูรขว้างขวานสายฟ้า", cd: 8, dur: 0.45,
+      charge: 0.22, chargeColor: "#bfe9ff", frames: [0, 0.3, 0.55], icon: "ramasun", assist: 90,
+      chargeFx: [{ key: "ramasun", dx: -6, dy: -42, life: 0.68, s0: 1.15, s1: 1.25, back: true, opacity: 0.9 }],
+      hits: [{ at: 0.55, dmg: [30, 40], reach: 118, power: 2, kb: 150, sfx: "zap", sparkColor: "#dff2ff", sparkColor2: "#8f7bff",
+        fx: [{ sparks: [[14, "#dff2ff"], [10, "#8f7bff"]] }, { shockwave: true }] }],
+    },
+    hanuman: {
+      name: "หนุมานข้ามลงกา", desc: "กระโดดขึ้นตรง แล้วแทงเข่าดิ่งลง 45 องศา", cd: 8,
+      icon: "wind", leap: { vy: -840, vx: 0, dive: 640 },
+      trail: { every: 0.04, fx: [{ key: "wind", dx: -26, dy: -26, life: 0.3, s0: 0.7, s1: 1, opacity: 0.85 }] },
+      hit: { dmg: [34, 44], reach: 112, power: 2, knockdown: 1.2, crit: 0.3, sparkColor: "#d8ffe4", sparkColor2: "#8fe0a8",
+        fx: [{ key: "wind", at: "ground", anchor: "bottom", life: 0.5, s0: 0.9, s1: 1.4 }, { shockwave: true }] },
+    },
+    sun: {
+      name: "เหล็กไหลสุริยัน", desc: "ไม้ตาย ไฟลุกรอบตัว พลังโจมตีเพิ่มขึ้น 8 วินาที ทุกการโจมตีมีประกายไฟ",
+      cd: 22, ult: true, dur: 0.7, frames: [0, 0.3, 0.55], icon: "sunfire",
+      buff: { at: 0.55, dur: 8, dmg: 1.35, color: "#ffb02e",
+        hitSparks: [[10, "#ff7a1a"], [8, "#ffd23f"]], hitFx: "groundfire",
+        aura: { key: "sunfire", at: "ground", anchor: "bottom", dy: 6, s0: 1.05, s1: 1.1, back: true, opacity: 0.9 } },
+    },
+    moon: {
+      name: "เหล็กไหลจันทรา", desc: "ไม้ตาย ชาร์จครึ่งวินาที ขว้างหอกน้ำแข็งพุ่งไปสุดฉาก", cd: 16, ult: true,
+      charge: 0.5, chargeColor: "#bfefff", dur: 0.45, frames: [0, 0.4, 0.7], icon: "icespear",
+      shot: { at: 0.6, fx: "icespear", dmg: [70, 90], range: 2600, speed: 1300, straight: true, scale: 1.25,
+        power: 2, kb: 220, knockdown: 1.4, crit: 0.3, sfx: "ice", trail: "#dff8ff", sparkColor: "#dff8ff", sparkColor2: "#7fd8ff" },
     },
   },
-  skillOrder: ["ironfist", "thunderkick", "tornado"],
-  defaultLoadout: ["ironfist", "thunderkick", "tornado"],
+  skillOrder: ["blink", "magnet", "ramasun", "hanuman", "sun", "moon"],
+  defaultLoadout: ["blink", "ramasun", "moon"],
 };
