@@ -4,7 +4,8 @@
   "use strict";
 
   const M = window.MANIFEST;
-  const W = 640, H = 360;           // internal resolution
+  const H = 360;                    // internal height; width follows the screen shape
+  let W = 640;
   const GROUND_Y = M.groundY;       // feet line in screen space
   const GRAVITY = 1900;
   const WALK_SPEED = 165;
@@ -25,9 +26,23 @@
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
-  canvas.width = W;
-  canvas.height = H;
-  ctx.imageSmoothingEnabled = false;
+  // ---------- layout: desktop cabinet vs. full-screen landscape on phones ----------
+  const root = document.documentElement;
+  const isTouch = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+  root.classList.toggle("touch", isTouch);
+
+  function fitCanvas() {
+    const portrait = innerHeight > innerWidth;
+    root.classList.toggle("portrait", portrait);
+    // on phones, widen the view to the screen's aspect so there are no letterbox bars
+    const want = isTouch && !portrait ? Math.round(H * (innerWidth / innerHeight) / 2) * 2 : 640;
+    W = clamp(want, 560, 820);
+    if (canvas.width !== W) canvas.width = W;
+    if (canvas.height !== H) canvas.height = H;
+    ctx.imageSmoothingEnabled = false;
+  }
+  addEventListener("resize", fitCanvas);
+  addEventListener("orientationchange", () => setTimeout(fitCanvas, 120));
 
   // ---------- assets ----------
   const images = {};
@@ -73,6 +88,63 @@
     btn.addEventListener("pointerleave", up);
     btn.addEventListener("pointercancel", up);
   }
+
+  // Floating joystick: touch anywhere on the left side, the stick appears under the thumb.
+  const zone = document.getElementById("stick-zone");
+  const stickBase = document.getElementById("stick-base");
+  const stickKnob = document.getElementById("stick-knob");
+  if (zone) {
+    let stickId = null, ox = 0, oy = 0;
+    const RADIUS = 46, DEAD = 10;
+    const release = () => {
+      stickId = null;
+      keys.delete("left");
+      keys.delete("right");
+      stickBase.classList.remove("live");
+      stickKnob.style.transform = "translate(-50%, -50%)";
+    };
+    zone.addEventListener("pointerdown", (e) => {
+      if (stickId !== null) return;
+      e.preventDefault();
+      stickId = e.pointerId;
+      zone.setPointerCapture(e.pointerId);
+      const r = zone.getBoundingClientRect();
+      ox = e.clientX - r.left;
+      oy = e.clientY - r.top;
+      stickBase.style.left = ox + "px";
+      stickBase.style.top = oy + "px";
+      stickBase.classList.add("live");
+    });
+    zone.addEventListener("pointermove", (e) => {
+      if (e.pointerId !== stickId) return;
+      const r = zone.getBoundingClientRect();
+      let dx = e.clientX - r.left - ox, dy = e.clientY - r.top - oy;
+      const len = Math.hypot(dx, dy);
+      if (len > RADIUS) { dx *= RADIUS / len; dy *= RADIUS / len; }
+      stickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      keys.delete("left");
+      keys.delete("right");
+      if (dx < -DEAD) keys.add("left");
+      if (dx > DEAD) keys.add("right");
+    });
+    for (const ev of ["pointerup", "pointercancel"]) {
+      zone.addEventListener(ev, (e) => { if (e.pointerId === stickId) release(); });
+    }
+  }
+
+  // Full screen + landscape lock where the browser allows it (it often doesn't; that's fine).
+  const fsBtn = document.getElementById("fullscreen");
+  if (fsBtn) {
+    fsBtn.addEventListener("click", async () => {
+      try {
+        if (!document.fullscreenElement) await document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        else await document.exitFullscreen();
+      } catch (_) { /* not allowed here */ }
+      try { await screen.orientation?.lock?.("landscape"); } catch (_) { /* not supported */ }
+      setTimeout(fitCanvas, 150);
+    });
+  }
+  const atkBtn = document.querySelector(".skill.attack");
 
   // ---------- helpers ----------
   const rand = (a, b) => a + Math.random() * (b - a);
@@ -714,6 +786,7 @@
 
     // combo step pips: which of the 5 attacks is playing or ready to chain
     const step = p.combo >= 0 ? p.combo : (p.sinceAttack < COMBO_WINDOW ? state.lastCombo : -1);
+    if (atkBtn) atkBtn.style.setProperty("--combo", String((step + 1) / 5));
     for (let i = 0; i < 5; i++) {
       ctx.fillStyle = i <= step ? "#ffd23f" : "rgba(243,233,210,0.25)";
       ctx.fillRect(58 + i * 12, 54, 9, 4);
@@ -761,6 +834,7 @@
     requestAnimationFrame(frame);
   }
 
+  fitCanvas();
   reset();
   const status = document.getElementById("status");
   loadImages()

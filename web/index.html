@@ -5,7 +5,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Kanit:wght@400;600;800&display=swap">
 <style>
-  /* Layout: one dusk-lit cabinet — title plate, 16:9 pixel screen, key legend underneath. */
+  /* Layout: desktop = dusk-lit cabinet (title, 16:9 screen, key legend); phone = full-screen landscape with joystick left, skills right. */
   :root {
     --night: #120d1c;      /* page ground, outlines */
     --plum: #1d1530;       /* cabinet panel */
@@ -114,36 +114,164 @@
   }
   .legend .crit { color: var(--gold); }
 
-  /* touch controls: shown only on coarse pointers */
-  .pad {
-    display: none;
-    width: min(100%, 1100px);
-    justify-content: space-between;
-    gap: 12px;
+  /* ---------- phones: full-screen landscape, MOBA-style controls ---------- */
+  .controls, #rotate { display: none; }
+  html.touch, html.touch body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  html.touch body { padding: 0; display: block; background: var(--night); }
+  html.touch header, html.touch .legend { display: none; }
+  html.touch .screen {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: auto;
+    border: 0;
+    box-shadow: none;
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  html.touch canvas { object-fit: contain; }
+  html.touch .controls { display: block; }
+  .controls {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    --edge-l: max(14px, env(safe-area-inset-left, 0px));
+    --edge-r: max(14px, env(safe-area-inset-right, 0px));
+    --edge-b: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+  .controls > * { pointer-events: auto; }
+
+  /* left: floating joystick zone */
+  #stick-zone {
+    position: absolute;
+    left: 0;
+    top: 22%;
+    bottom: 0;
+    width: 45%;
     touch-action: none;
   }
-  .pad .group { display: flex; gap: 10px; }
-  .pad button {
-    width: 64px;
-    height: 64px;
+  #stick-base {
+    position: absolute;
+    left: calc(var(--edge-l) + 70px);
+    top: calc(100% - var(--edge-b) - 70px);
+    width: 116px;
+    height: 116px;
+    transform: translate(-50%, -50%);
     border-radius: 50%;
-    border: 3px solid var(--dusk);
-    background: var(--plum);
+    background: radial-gradient(circle, rgba(18, 13, 28, 0.15) 40%, rgba(18, 13, 28, 0.45));
+    border: 2px solid rgba(243, 233, 210, 0.28);
+    opacity: 0.55;
+    transition: opacity 0.12s;
+  }
+  #stick-base.live { opacity: 1; transition: none; }
+  #stick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 50px;
+    height: 50px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6dc, var(--paper) 45%, #b9a98d);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35);
+  }
+
+  /* right: skill cluster around a big attack button */
+  .skills {
+    position: absolute;
+    right: var(--edge-r);
+    bottom: var(--edge-b);
+    width: 190px;
+    height: 170px;
+  }
+  .skill {
+    position: absolute;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 0;
+    padding: 0;
     color: var(--paper);
     font-family: var(--font-pixel);
-    font-size: 0.8rem;
     touch-action: none;
+    -webkit-tap-highlight-color: transparent;
   }
-  .pad button.atk { background: var(--ember); border-color: var(--night); width: 76px; height: 76px; }
-  .pad button.on { filter: brightness(1.4); }
-  .pad .restart { width: auto; border-radius: 10px; padding: 0 10px; height: 40px; align-self: center; }
-  @media (pointer: coarse) {
-    .pad { display: flex; }
-    .legend .keys { display: none; }
-    .screen { width: min(100%, 1100px); }
+  .skill svg { width: 46%; height: 46%; pointer-events: none; }
+  .skill span {
+    position: absolute;
+    bottom: -15px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: var(--paper);
+    text-shadow: 0 1px 0 var(--night);
+    pointer-events: none;
   }
+  .skill.attack {
+    --combo: 0;
+    right: 6px;
+    bottom: 10px;
+    width: 96px;
+    height: 96px;
+    /* outer ring fills with gold as the 5-hit combo advances */
+    background:
+      radial-gradient(circle, #c8312a 0 56%, transparent 57%),
+      conic-gradient(var(--gold) calc(var(--combo) * 360deg), rgba(18, 13, 28, 0.55) 0);
+    box-shadow: 0 0 0 3px var(--night), 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+  .skill.attack svg { width: 50%; height: 50%; }
+  .skill.jump {
+    right: 112px;
+    bottom: 6px;
+    width: 64px;
+    height: 64px;
+    background: radial-gradient(circle at 50% 35%, #4a2f5c, var(--plum));
+    box-shadow: 0 0 0 2px var(--gold), 0 0 0 4px var(--night);
+  }
+  .skill.on { filter: brightness(1.35); transform: scale(0.94); }
+  .sys {
+    position: absolute;
+    top: max(8px, env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+  }
+  .sys button {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 2px solid rgba(243, 233, 210, 0.3);
+    background: rgba(18, 13, 28, 0.6);
+    color: var(--paper);
+    display: grid;
+    place-items: center;
+    padding: 0;
+    touch-action: manipulation;
+  }
+  .sys svg { width: 18px; height: 18px; }
+
+  /* portrait on a phone: ask to rotate */
+  html.touch.portrait #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 14px;
+    padding-inline: 24px;
+    text-align: center;
+    background: var(--night);
+    color: var(--paper);
+  }
+  #rotate svg { width: 72px; height: 72px; color: var(--gold); animation: tilt 1.8s ease-in-out infinite; }
+  #rotate strong { font-size: 1.35rem; font-weight: 600; }
+  #rotate p { margin: 0; color: var(--muted); max-width: 26ch; }
+  @keyframes tilt { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (prefers-reduced-motion: reduce) { #rotate svg { animation: none; transform: rotate(-90deg); } }
 </style>
 
 <header>
@@ -154,6 +282,24 @@
 <div class="screen">
   <canvas id="game" tabindex="0" aria-label="เกมคมแฝก: ใช้ลูกศรเดิน กระโดด และ J เพื่อโจมตี"></canvas>
   <div id="status">LOADING…</div>
+  <div class="controls">
+    <div id="stick-zone" aria-label="จอยเดิน แตะค้างแล้วลากซ้ายขวา">
+      <div id="stick-base"><div id="stick-knob"></div></div>
+    </div>
+    <div class="skills">
+      <button class="skill jump" data-act="jump" aria-label="กระโดด">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V6"/><path d="M6 11l6-6 6 6"/></svg>
+        <span>JUMP</span>
+      </button>
+      <button class="skill attack" data-act="attack" aria-label="โจมตี ฟาดคมแฝก">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff4d6" stroke-width="2.6" stroke-linecap="round"><path d="M5 19L17 5"/><path d="M4 16l4 4"/><path d="M15 4.5c2.5-.5 4.5 1.5 4.5 4" stroke-width="1.6" opacity=".8"/></svg>
+      </button>
+    </div>
+    <div class="sys">
+      <button data-act="restart" aria-label="เริ่มใหม่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
+      <button id="fullscreen" aria-label="เต็มจอ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </div>
+  </div>
 </div>
 
 <ul class="legend">
@@ -164,16 +310,10 @@
   <li class="crit">พื้นแดง เลขเหลือง = คริติคอล</li>
 </ul>
 
-<div class="pad" aria-label="ปุ่มควบคุมแบบสัมผัส">
-  <div class="group">
-    <button data-act="left" aria-label="เดินซ้าย">◀</button>
-    <button data-act="right" aria-label="เดินขวา">▶</button>
-  </div>
-  <button class="restart" data-act="restart">RESTART</button>
-  <div class="group">
-    <button data-act="jump" aria-label="กระโดด">JUMP</button>
-    <button class="atk" data-act="attack" aria-label="โจมตี">HIT</button>
-  </div>
+<div id="rotate" role="status">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
+  <strong>หมุนจอเป็นแนวนอน</strong>
+  <p>เกมนี้ออกแบบให้เล่นแนวนอน จับมือถือสองมือ ซ้ายเดิน ขวาตี</p>
 </div>
 
 <script src="assets/manifest.js"></script>
