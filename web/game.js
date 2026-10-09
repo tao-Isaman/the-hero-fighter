@@ -977,15 +977,17 @@
     });
   }
 
-  // skill picker: choose 3 of 7
+  // skill picker: choose 3 of 7. The picker edits a draft; the equipped loadout only
+  // changes when the draft is complete and applied, so the game never sees < 3 skills.
   const picker = document.getElementById("picker");
   let pickerOpen = false;
+  let draft = [];
   function renderPicker() {
     const list = picker.querySelector(".pick-list");
     list.textContent = "";
     for (const id of SKILL_ORDER) {
       const def = SKILLS[id];
-      const slot = loadout.indexOf(id);
+      const slot = draft.indexOf(id);
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.type = "button";
@@ -999,13 +1001,13 @@
       list.appendChild(li);
     }
     picker.querySelector(".pick-note").textContent =
-      loadout.length < 3 ? `เลือกอีก ${3 - loadout.length} ท่า` : "ติดตั้งครบ 3 ท่าแล้ว แตะท่าที่เลือกไว้เพื่อถอดออก";
-    picker.querySelector(".pick-done").disabled = loadout.length !== 3;
+      draft.length < 3 ? `เลือกอีก ${3 - draft.length} ท่า` : "ติดตั้งครบ 3 ท่าแล้ว แตะท่าที่เลือกไว้เพื่อถอดออก";
+    picker.querySelector(".pick-done").disabled = draft.length !== 3;
   }
   function togglePick(id) {
-    const i = loadout.indexOf(id);
-    if (i >= 0) loadout.splice(i, 1);
-    else if (loadout.length < 3) loadout.push(id);
+    const i = draft.indexOf(id);
+    if (i >= 0) draft.splice(i, 1);
+    else if (draft.length < 3) draft.push(id);
     else {
       const note = picker.querySelector(".pick-note");
       note.textContent = "เลือกได้ 3 ท่า แตะท่าที่เลือกไว้เพื่อถอดออกก่อน";
@@ -1015,27 +1017,40 @@
     renderPicker();
   }
   function openPicker() {
+    if (pickerOpen) return;
     pickerOpen = true;
+    draft = [...loadout];
     picker.hidden = false;
     keys.clear();
     renderPicker();
   }
-  function closePicker() {
-    if (loadout.length !== 3) return;
+  // apply = true: equip the draft (only when it has 3); false: discard it
+  function closePicker(apply = true) {
+    if (!pickerOpen) return;
+    if (apply) {
+      if (draft.length !== 3) return;
+      const changed = draft.join() !== loadout.join();
+      loadout = [...draft];
+      try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(loadout)); } catch (_) { /* ignore */ }
+      if (changed) state.cooldowns = [0, 0, 0];
+      syncSkillButtons();
+    }
     pickerOpen = false;
     picker.hidden = true;
-    try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(loadout)); } catch (_) { /* ignore */ }
-    state.cooldowns = [0, 0, 0];
-    syncSkillButtons();
+    keys.clear();
+    pressed.clear();
     canvas.focus();
   }
   if (picker) {
-    picker.querySelector(".pick-done").addEventListener("click", closePicker);
+    picker.querySelector(".pick-done").addEventListener("click", () => closePicker(true));
+    // tapping the dark area around the panel closes it without changes
+    picker.addEventListener("click", (e) => { if (e.target === picker) closePicker(false); });
     for (const b of document.querySelectorAll("[data-open-picker]")) b.addEventListener("click", openPicker);
     addEventListener("keydown", (e) => {
       if (e.code === "KeyK" && e.shiftKey) return;
       if (e.code === "Tab" && !pickerOpen) { e.preventDefault(); openPicker(); }
-      else if ((e.code === "Escape" || e.code === "Tab") && pickerOpen) { e.preventDefault(); closePicker(); }
+      else if (e.code === "Escape" && pickerOpen) { e.preventDefault(); closePicker(false); }
+      else if (e.code === "Tab" && pickerOpen) { e.preventDefault(); closePicker(true); }
     });
   }
 
@@ -1490,12 +1505,18 @@
 
   // ---------- loop ----------
   let last = 0;
+  let loopErrors = 0;
   function frame(now) {
+    // schedule the next frame first so one bad frame can never freeze the game
+    requestAnimationFrame(frame);
     const dt = Math.min(0.05, (now - last) / 1000 || 0);
     last = now;
-    update(dt);
-    render();
-    requestAnimationFrame(frame);
+    try {
+      update(dt);
+      render();
+    } catch (err) {
+      if (loopErrors++ < 3) console.error(err);
+    }
   }
 
   fitCanvas();
