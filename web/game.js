@@ -1539,7 +1539,7 @@
         const sc = ride.scale || 2;
         ctx.save();
         ctx.translate(Math.round(f.x - camX + f.facing * (ride.dx || 0)), Math.round(f.y - lift + (ride.dy == null ? 6 : ride.dy)));
-        ctx.scale(f.facing * sc, sc);
+        ctx.scale(f.facing * sc, ride.sy || sc);   // sy < scale: a long, thin rocket
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
       }
