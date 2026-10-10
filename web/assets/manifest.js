@@ -39,7 +39,8 @@ window.MANIFEST = {
   "goldbeam": "assets/vfx_goldbeam.png",
   "fireblast": "assets/vfx_fireblast.png",
   "thunderball": "assets/vfx_thunderball.png",
-  "whirl": "assets/vfx_whirl.png"
+  "whirl": "assets/vfx_whirl.png",
+  "rocket": "assets/vfx_rocket.png"
  },
  "vfxAnim": {
   "bird": {

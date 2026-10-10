@@ -489,6 +489,7 @@
     const o = f.opp;
     const atk = curAttack(f);
     if (atk.fx) spawnFx(f, atk.fx);      // slash marks show even on a miss
+    if (atk.shot) { fireShot(f, atk.shot); return; }   // thrown attacks hit when the projectile does
     const dx = (o.x - f.x) * f.facing;
     if (o.hp <= 0) return;
     if (atk.plunge) {
@@ -499,6 +500,18 @@
     if (Math.abs(o.y - f.y) > 130) return;               // one is far above the other
     const away = atk.plunge ? Math.sign(o.x - f.x) || f.facing : f.facing;
     hitFighter(o, { ...atk, dir: away, sparkColor: atk.power ? "#ffd23f" : "#fff2c4" }, f);
+  }
+
+  // A projectile leaves the hand: straight shots may fly at an angle (degrees, + = downward)
+  function fireShot(f, d) {
+    const muzzle = d.muzzle || [30, -62];
+    const a = ((d.angle || 0) * Math.PI) / 180;
+    state.shots.push({
+      owner: f, x: f.x + f.facing * muzzle[0], y: f.y + muzzle[1], dir: f.facing, dist: 0, out: true,
+      hit: false, rot: 0, def: d, cos: Math.cos(a), sin: Math.sin(a), angle: a,
+    });
+    if (d.flash) addSparks(f.x + f.facing * muzzle[0], f.y + muzzle[1], 6, d.flash);
+    if (d.sound) sfx[d.sound]?.();
   }
 
   // ---------- skills ----------
@@ -759,13 +772,7 @@
       if (sk.t - t0 >= def.shot.at * def.dur + fired * (def.shot.gap || 0)) {
         sk.fired = fired + 1;
         if (sk.fired >= burst) sk.thrown = true;
-        const muzzle = def.shot.muzzle || [30, -62];
-        state.shots.push({
-          owner: f, x: f.x + f.facing * muzzle[0], y: f.y + muzzle[1], dir: f.facing, dist: 0, out: true,
-          hit: false, rot: 0, def: def.shot,
-        });
-        if (def.shot.flash) addSparks(f.x + f.facing * muzzle[0], f.y + muzzle[1], 6, def.shot.flash);
-        if (def.shot.sound) sfx[def.shot.sound]?.();
+        fireShot(f, def.shot);
       }
     }
 
@@ -861,10 +868,23 @@
       s.rot += dt * 26;
       const step = s.def.speed * dt;
       if (s.def.straight) {
-        // flies straight to the edge of the stage and never comes back
-        s.x += s.dir * step;
+        // flies straight (or at its angle) to the edge of the stage and never comes back
+        s.x += s.dir * step * (s.cos ?? 1);
+        s.y += step * (s.sin ?? 0);
         s.dist += step;
         if (s.dist >= s.def.range || s.x < -200 || s.x > M.worldWidth + 200) s.done = true;
+        if (s.y >= GROUND_Y - 6) {
+          // hit the ground: blast, and catch the opponent if they are close to the impact
+          s.done = true;
+          if (s.def.groundFx) addVfx(s.def.groundFx, s.x, GROUND_Y + 4, { life: 0.45, s0: 0.6, s1: (s.def.scale || 1) * 1.1, anchor: "bottom" });
+          addShockwave(s.x, GROUND_Y);
+          const o = f.opp;
+          if (!s.hit && o.hp > 0 && Math.abs(o.x - s.x) < (s.def.splash || 50) && o.y > GROUND_Y - 120) {
+            s.hit = true;
+            hitFighter(o, { power: 1, crit: 0.2, kb: 40, ...s.def, skill: true, dir: s.dir }, f);
+          }
+          continue;
+        }
         if (s.def.trail && chance(0.6)) addSparks(s.x - s.dir * 50, s.y + rand(-6, 6), 1, s.def.trail);
       } else if (s.out) {
         s.x += s.dir * step;
@@ -1577,7 +1597,7 @@
   ];
 
   function drawSlash(f, camX) {
-    if (f.combo < 0) return;
+    if (f.combo < 0 || curAttack(f).shot) return;    // throws show their projectile, not a swing trail
     const a = f.kit.anims[f.anim];
     const k = clamp(f.t / a.duration, 0, 1);
     const start = a.playFor * 0.25;            // swing begins after the wind-up frame
@@ -1723,6 +1743,7 @@
         ctx.translate(Math.round(s.x - camX), Math.round(s.y));
         ctx.scale(s.dir * (s.def.scale || 1), s.def.scale || 1);
         if (s.def.spin) ctx.rotate(s.rot);
+        else if (s.angle) ctx.rotate(s.angle);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = 0.45;

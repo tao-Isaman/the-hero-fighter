@@ -285,6 +285,15 @@
       tone(t + 0.02, { f0: 70, f1: 30, dur: 0.8, gain: 0.6, wet: 0.6 });
     },
 
+    // bamboo rocket launch: a hissing whoosh that rises in pitch
+    rocket() {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      noise(t, { type: "bandpass", f0: 800, f1: 3800, q: 1.5, dur: 0.35, gain: 0.4, attack: 0.02, wet: 0.3 });
+      noise(t, { type: "highpass", f0: 3000, f1: 6000, dur: 0.3, gain: 0.15, attack: 0.02 });
+      tone(t, { f0: 120, f1: 60, dur: 0.12, gain: 0.4, drive: true });
+    },
+
     // pistol shot: sharp crack, punchy body, short room tail
     gun() {
       if (!ready()) return;
