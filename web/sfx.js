@@ -275,6 +275,16 @@
       noise(t, { type: "bandpass", f0: 700, f1: 300, q: 0.8, dur: 0.9, gain: 0.4, attack: 0.08, drive: true, wet: 0.5 });
     },
 
+    // thunderclap: a sharp crack followed by a rolling rumble
+    thunder() {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      noise(t, { type: "highpass", f0: 2500, dur: 0.06, gain: 0.8, drive: true });
+      for (let i = 0; i < 4; i++) noise(t + i * 0.03, { type: "bandpass", f0: vary(3000, 0.3), q: 2, dur: 0.03, gain: 0.4 });
+      noise(t + 0.03, { type: "lowpass", f0: 400, f1: 80, dur: 1.0, gain: 0.7, attack: 0.05, drive: true, wet: 0.7 });
+      tone(t + 0.02, { f0: 70, f1: 30, dur: 0.8, gain: 0.6, wet: 0.6 });
+    },
+
     // pistol shot: sharp crack, punchy body, short room tail
     gun() {
       if (!ready()) return;

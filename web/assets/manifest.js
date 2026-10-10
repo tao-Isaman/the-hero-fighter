@@ -34,7 +34,12 @@ window.MANIFEST = {
   "bullet": "assets/vfx_bullet.png",
   "pistol": "assets/vfx_pistol.png",
   "goldbolt": "assets/vfx_goldbolt.png",
-  "goldburst": "assets/vfx_goldburst.png"
+  "goldburst": "assets/vfx_goldburst.png",
+  "bluebolt": "assets/vfx_bluebolt.png",
+  "goldbeam": "assets/vfx_goldbeam.png",
+  "fireblast": "assets/vfx_fireblast.png",
+  "thunderball": "assets/vfx_thunderball.png",
+  "whirl": "assets/vfx_whirl.png"
  },
  "vfxAnim": {
   "bird": {

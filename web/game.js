@@ -413,6 +413,13 @@
       if (buffed.hitFx) addVfx(buffed.hitFx, target.x - o.dir * 6, hy + 40, { life: 0.4, s0: 0.5, s1: 0.9, flip: o.dir });
     }
 
+    for (const e of o.targetFx || []) {
+      const dy = e.dy ?? -60;
+      addVfx(e.key, target.x, target.y + dy, {
+        life: e.life || 0.8, s0: e.s0 ?? 1, s1: e.s1 ?? 1, anchor: e.anchor || "center",
+        follow: target, fdy: dy, opacity: e.opacity ?? 1, flip: -o.dir,
+      });
+    }
     if (target.hp <= 0) knockOut(target, attacker);
     return true;
   }
@@ -551,12 +558,16 @@
     if (def.leap) return sk.phase;              // 0 rising, 1 falling strike, 2 landed
     if (def.counter) return sk.countering ? (sk.ct < def.counter.hitAt ? 1 : 2) : 0;   // guard, then strike back
     if (def.travel) return sk.landedT !== undefined ? 2 : sk.t < 0.1 ? 0 : 1;   // take off, strike, land
-    if (sk.t < (def.charge || 0)) return 0;     // charging holds the first frame
+    if (sk.t < (def.charge || 0)) {             // charging holds a pose (one per stage when staged)
+      const st = def.chargeStages && def.chargeStages.find((c) => sk.t < c.until);
+      return st ? st.frame : def.chargeFrame || 0;
+    }
+    const off = def.frameOffset || 0;          // clips with extra charge poses put the strike frames after them
     const k = (sk.t - (def.charge || 0)) / def.dur;
-    if (def.loopFrames) return Math.floor(k * 9) % 3;   // spin: cycle the 3 frames fast
+    if (def.loopFrames) return off + Math.floor(k * 9) % 3;   // spin: cycle the 3 frames fast
     let fr = 0;
     for (let i = 0; i < 3; i++) if (k >= def.frames[i]) fr = i;
-    return fr;
+    return off + fr;
   }
 
   function skillHit(f, h) {
@@ -649,9 +660,17 @@
     if (sk.t < t0) {
       f.vx = 0;
       if (!sk.charged) { sk.charged = true; spawnFx(f, def.chargeFx); }
+      // staged charges: each stage has its own pose, effects, colour and sound
+      const si = def.chargeStages ? def.chargeStages.findIndex((c) => sk.t < c.until) : -1;
+      const stage = si >= 0 ? def.chargeStages[si] : null;
+      if (stage && sk.stage !== si) {
+        sk.stage = si;
+        spawnFx(f, stage.fx);
+        if (stage.sound) sfx[stage.sound]?.();
+      }
       if (chance(0.7)) {
         const a = rand(0, Math.PI * 2);
-        addSparks(f.x + f.facing * 16 + Math.cos(a) * 30, f.y - 64 + Math.sin(a) * 30, 1, def.chargeColor || "#ffb02e");
+        addSparks(f.x + f.facing * 16 + Math.cos(a) * 30, f.y - 64 + Math.sin(a) * 30, 1, (stage && stage.color) || def.chargeColor || "#ffb02e");
       }
       state.shake = Math.max(state.shake, 1 + (sk.t / t0) * 2);
       return true;
@@ -1703,6 +1722,7 @@
         ctx.save();
         ctx.translate(Math.round(s.x - camX), Math.round(s.y));
         ctx.scale(s.dir * (s.def.scale || 1), s.def.scale || 1);
+        if (s.def.spin) ctx.rotate(s.rot);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = 0.45;
