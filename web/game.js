@@ -326,6 +326,7 @@
       flashRed: 0, dim: 0, time: 0,
       shake: 0, hitStop: 0, slowmo: 0,
       over: false, winner: null, introT: 1.6,
+      timers: [],                  // delayed actions, e.g. rockets falling after a cast
     };
   }
 
@@ -700,10 +701,12 @@
       const D = def.dash, o = f.opp;
       if (sk.dashDir === undefined) {
         const held = (f.input.keys.has("right") ? 1 : 0) - (f.input.keys.has("left") ? 1 : 0);
-        sk.dashDir = held || f.facing;
+        sk.dashDir = D.forward ? f.facing : held || f.facing;
         sk.dashSide = Math.sign(o.x - f.x);
       }
+      const was = sk.dashing;
       sk.dashing = sk.t - t0 < D.time;
+      if (was && !sk.dashing && D.hopOff) { f.vy = -D.hopOff; f.onGround = false; }   // jump off the ride
       if (sk.dashing) {
         f.x = clamp(f.x + sk.dashDir * (D.dist / D.time) * dt, 40, M.worldWidth - 40);
         sk.passThrough = true;
@@ -714,6 +717,42 @@
           spawnFx(f, D.hit.fx);
           hitFighter(o, { crit: 0.25, kb: 60, ...D.hit, skill: true, dir: sk.dashDir }, f);
         }
+      }
+    }
+    // hop: leap over the opponent in an arc and land behind them
+    if (def.hop) {
+      const H = def.hop, o = f.opp;
+      if (sk.hopFrom === undefined) {
+        const side = Math.sign(o.x - f.x) || f.facing;
+        sk.hopFrom = f.x;
+        sk.hopTo = Math.abs(o.x - f.x) <= (H.range ?? 420) ? clamp(o.x + side * H.behind, 40, M.worldWidth - 40) : f.x + side * 120;
+      }
+      const p = clamp((sk.t - t0) / H.time, 0, 1);
+      sk.moving = p < 1;
+      f.x = sk.hopFrom + (sk.hopTo - sk.hopFrom) * p;
+      f.y = GROUND_Y - Math.sin(Math.PI * p) * H.height;
+      f.onGround = p >= 1;
+      if (p >= 1) f.facing = Math.sign(o.x - f.x) || f.facing;
+    }
+    // shadow for flying skills (travel) while airborne
+    if (def.travel && def.shadow) sk.moving = !f.onGround;
+    // rain: after casting, rockets fall from the sky on the opponent for a while
+    if (def.rain && !sk.rained && kk >= (def.rain.at || 0)) {
+      sk.rained = true;
+      const R = def.rain, dir = f.facing;
+      for (let i = 0; i < R.count; i++) {
+        state.timers.push({
+          t: (R.delay || 0) + (i * R.duration) / R.count,
+          fn: () => {
+            const o = f.opp, h = R.height || 330;
+            const tx = o.x + rand(-R.spread || -80, R.spread || 80);
+            state.shots.push({
+              owner: f, x: tx - dir * h, y: GROUND_Y - h, dir, dist: 0, out: true, hit: false, rot: 0,
+              def: R.shot, cos: Math.SQRT1_2, sin: Math.SQRT1_2, angle: Math.PI / 4,
+            });
+            sfx.rocket?.();
+          },
+        });
       }
     }
     // pull: drag the opponent in while the field is up (no damage)
@@ -734,15 +773,15 @@
     }
 
     // ground skills are rooted unless they drift or travel forward
-    if (def.dash) f.vx = 0;
+    if (def.dash || def.hop) f.vx = 0;
     else f.vx = def.travel && !f.onGround ? f.facing * def.travel.vx : def.drift ? f.facing * def.drift : 0;
     f.x += f.vx * dt;
     if (sk.dashTo !== null && sk.t < 0.16) {
       f.x += (sk.dashTo - f.x) * Math.min(1, dt * 22);
       if (Math.floor(sk.t * 60) % 2 === 0) addSparks(f.x - f.facing * 20, GROUND_Y - 6, 1, "#e9dcc0");
     }
-    // airborne during a skill (flying knee, rising uppercut): fall back down
-    if (!f.onGround) {
+    // airborne during a skill (flying knee, rising uppercut): fall back down (hops move on their own arc)
+    if (!f.onGround && !def.hop) {
       f.vy += GRAVITY * (def.gravity ?? 1) * dt;
       f.y += f.vy * dt;
       if (f.y >= GROUND_Y) {
@@ -1083,6 +1122,8 @@
     if (def.shot) return def.shot.range * 0.8;
     if (def.blink) return def.blink.range;
     if (def.dash) return def.dash.dist * 0.8;
+    if (def.hop) return def.hop.range ?? 420;
+    if (def.rain) return 9999;
     if (def.pull) return def.pull.range;
     if (def.buff) return 9999;
     if (def.leap && typeof def.leap === "object" && def.leap.dive) return 420;
@@ -1188,6 +1229,7 @@
     const p = state.p1;
     skillBtns.forEach((btn, i) => {
       const def = p1Kit.c.skills[p.loadout[i]];
+      if (!def) return;
       const cd = p.cooldowns[i];
       btn.style.setProperty("--cd", String(cd > 0 ? cd / def.cd : 0));
       const n = btn.querySelector("b");
@@ -1390,6 +1432,8 @@
     for (const f of state.fighters) updateFighter(f, dt);
     separateFighters();
     updateShots(dt);
+    for (const tm of state.timers) { tm.t -= dt; if (tm.t <= 0 && !state.over) tm.fn(); }
+    state.timers = state.timers.filter((tm) => tm.t > 0);
 
     for (const v of state.vfx) {
       v.t += dt;
@@ -1464,7 +1508,8 @@
     if (f.skill) {
       f.ghostT -= 1 / 60;
       if (f.ghostT <= 0) {
-        const shadow = !!(f.skill.def.dash && f.skill.def.dash.shadow && f.skill.dashing);
+        const sk = f.skill, def = sk.def;
+        const shadow = !!((def.dash && def.dash.shadow && sk.dashing) || (def.shadow && sk.moving));
         f.ghostT = shadow ? 0.025 : 0.035;
         f.ghosts.push({ anim: f.anim, frame, x: f.x, y: f.y, facing: f.facing, born: state.time, shadow });
       }
@@ -1484,6 +1529,22 @@
       drawFrame(f.kit.anims[g.anim], g.frame, g.x - camX, g.y, g.facing, f.kit.scale, 0.35 * (1 - age));
     }
     drawShadow(f.x - camX, GROUND_Y, 26 - Math.min(14, (GROUND_Y - f.y) / 8));
+    let lift = 0;
+    const ride = f.skill && f.skill.def.dash && f.skill.def.dash.ride;
+    if (ride && f.skill.dashing) {
+      // standing on a flying rocket: draw it under the feet, fire out the back
+      lift = ride.lift || 22;
+      const img = images[M.vfx[ride.key]];
+      if (img) {
+        const sc = ride.scale || 2;
+        ctx.save();
+        ctx.translate(Math.round(f.x - camX), Math.round(f.y - lift + 6));
+        ctx.scale(f.facing * sc, sc);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        ctx.restore();
+      }
+      addSparks(f.x - f.facing * 90, f.y - lift + 8, 2, "#ffb02e");
+    }
 
     // reactions: shake while stunned by a hit, tip over when knocked down, tumble in the air
     let ox = 0, rot = 0;
@@ -1496,7 +1557,7 @@
       rot = -f.facing * clamp(-f.vy / 900, -0.6, 0.6);
     }
     const blink = f.invulnT > 0 && f.downT <= 0 && Math.floor(f.invulnT * 20) % 2 === 0 ? 0.55 : 1;
-    drawFrame(a, frame, f.x - camX + ox, f.y, f.facing, f.kit.scale, blink, f.flash, rot);
+    drawFrame(a, frame, f.x - camX + ox, f.y - lift, f.facing, f.kit.scale, blink, f.flash, rot);
   }
 
   function drawStunStars(camX) {
@@ -1744,6 +1805,8 @@
         ctx.scale(s.dir * (s.def.scale || 1), s.def.scale || 1);
         if (s.def.spin) ctx.rotate(s.rot);
         else if (s.angle) ctx.rotate(s.angle);
+        if (s.def.hoop) ctx.rotate(Math.sin(s.rot * 0.45) * 0.12);   // a flat ring of rockets: rocks and shudders as it whirls
+        if (s.def.wobble) ctx.scale(1, 0.55 + 0.45 * Math.abs(Math.cos(s.rot * 0.9)));   // spinning on its long axis
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = 0.45;
@@ -1826,6 +1889,7 @@
     const keysLbl = ["U", "I", "O"];
     for (let i = 0; i < 3; i++) {
       const def = p1Kit.c.skills[p.loadout[i]];
+      if (!def) continue;
       const x = x0 + i * (size + gap);
       ctx.fillStyle = "rgba(18,13,28,0.75)";
       ctx.fillRect(x - 2, y0 - 2, size + 4, size + 4);

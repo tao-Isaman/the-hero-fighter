@@ -27,9 +27,12 @@ window.CHARACTERS.baksiang = {
     air1: { image: "sprites/air1.png", duration: 0.26, playFor: 0.7, hitAt: 0.5, bottoms: "auto" },
     air2: { image: "sprites/air2.png", duration: 0.26, playFor: 0.7, hitAt: 0.5, bottoms: "auto" },
 
-    sk_rocketrain: { image: "sprites/sk_rocketrain.png" },
-    sk_bigrocket: { image: "sprites/sk_bigrocket.png" },
-    sk_barrage: { image: "sprites/sk_barrage.png" },
+    sk_monkey: { image: "sprites/sk_monkey.png", bottoms: "auto" },
+    sk_talai: { image: "sprites/sk_talai.png" },
+    sk_doubleknee: { image: "sprites/sk_doubleknee.png", bottoms: "auto" },
+    sk_tenk: { image: "sprites/sk_tenk.png" },
+    sk_bigride: { image: "sprites/sk_bigride.png" },
+    sk_rain: { image: "sprites/sk_rain.png" },
   },
 
   // rows with `shot` throw a rocket instead of striking; the rocket does the damage
@@ -53,25 +56,50 @@ window.CHARACTERS.baksiang = {
       dmg: i === 3 ? [14, 18] : [9, 12], power: i === 3 ? 1 : 0, kb: 30, crit: 0.2, sparkColor: "#ffb02e" },
   })),
 
-  // Placeholder skills built from his combo frames until the real ones are made.
   skills: {
-    rocketrain: {
-      name: "บั้งไฟแสนลูก", desc: "ขว้างบั้งไฟ 3 ลูกติด (ท่าชั่วคราว)", cd: 7, dur: 0.75, frames: [0, 0.3, 0.5], icon: "rocket",
-      shot: { at: 0.4, burst: 3, gap: 0.12, fx: "rocket", straight: true, range: 520, speed: 1000, scale: 0.55, muzzle: [56, -76],
-        sound: "rocket", trail: "#d8d0c0", dmg: [12, 15], power: 1, kb: 40, sparkColor: "#ffb02e" },
+    monkey: {
+      name: "ท่าลิงลม", desc: "กระโดดตีลังกาข้ามไปหลังศัตรูแล้วเตะ เงาตามตัว", cd: 6, dur: 0.62,
+      frames: [0, 0.25, 0.58], icon: "wind", shadow: true,
+      hop: { behind: 64, time: 0.34, height: 150, range: 430 },
+      hits: [{ at: 0.66, dmg: [22, 28], reach: 110, power: 1, kb: 90, crit: 0.3, sparkColor: "#ffd23f",
+        fx: [{ key: "wind", dx: 30, dy: -10, life: 0.3, s0: 0.6, s1: 0.9 }] }],
     },
-    bigrocket: {
-      name: "บั้งไฟพญานาค", desc: "ยิงบั้งไฟใหญ่ไปไกล ศัตรูล้ม (ท่าชั่วคราว)", cd: 8, dur: 0.6, frames: [0, 0.3, 0.55], icon: "rocket",
-      shot: { at: 0.55, fx: "rocket", straight: true, range: 800, speed: 1100, scale: 1.2, muzzle: [60, -76], sound: "rocket",
-        trail: "#d8d0c0", dmg: [30, 38], power: 2, kb: 180, knockdown: 1.2, sparkColor: "#ffb02e",
-        targetFx: [{ key: "groundfire", dy: 4, anchor: "bottom", life: 0.9, s0: 1.8, s1: 2.4 }] },
+    talai: {
+      name: "ตะไลบิน", desc: "ขว้างตะไลวงกลม 2 อัน หมุนพุ่งไปโจมตีไกล", cd: 6, dur: 0.6,
+      frames: [0, 0.3, 0.5], icon: "talai",
+      shot: { at: 0.45, burst: 2, gap: 0.14, fx: "talai", straight: true, hoop: true, range: 620, speed: 760, scale: 0.8,
+        muzzle: [56, -76], sound: "rocket", trail: "#ffd23f", dmg: [13, 17], power: 1, kb: 50, sparkColor: "#ffb02e" },
     },
-    barrage: {
-      name: "ฝนบั้งไฟ", desc: "ไม้ตาย ยิงบั้งไฟรัว 6 ลูก (ท่าชั่วคราว)", cd: 16, ult: true, dur: 1.1, frames: [0, 0.2, 0.4], icon: "rocket",
-      shot: { at: 0.3, burst: 6, gap: 0.1, fx: "rocket", straight: true, range: 700, speed: 1100, scale: 0.7, muzzle: [60, -76],
-        sound: "rocket", trail: "#d8d0c0", dmg: [12, 16], power: 1, kb: 50, sparkColor: "#ffb02e" },
+    doubleknee: {
+      name: "ท่าเข่าคู่", desc: "กระโดดพุ่งเข้าหา แทงเข่า 2 ครั้ง เงาตามตัว", cd: 7, dur: 0.5,
+      icon: "clawheavy", shadow: true, assist: 70, travel: { vx: 330, vy: -480, landHold: 0.18 },
+      hits: [0.2, 0.42].map((at, i) => ({ at, dmg: [14, 18], reach: 112, both: true, power: i ? 2 : 1, kb: i ? 120 : 30,
+        sparkColor: "#ffd23f" })),
+    },
+    tenk: {
+      name: "บั้งไฟหมื่น", desc: "ยิงบั้งไฟ 3 ลูกติด ระยะไกล", cd: 7, dur: 0.75,
+      frames: [0, 0.3, 0.5], icon: "rocket",
+      shot: { at: 0.4, burst: 3, gap: 0.12, fx: "rocket", straight: true, range: 650, speed: 1000, scale: 0.7, muzzle: [60, -76],
+        sound: "rocket", trail: "#d8d0c0", flash: "#ffb02e", dmg: [13, 17], power: 1, kb: 50, sparkColor: "#ffb02e",
+        targetFx: [{ key: "groundfire", dy: 4, anchor: "bottom", life: 0.5, s0: 1.1, s1: 1.4 }] },
+    },
+    bigride: {
+      name: "บั้งไฟล้าน", desc: "ไม้ตาย ชาร์จ 1 วิ กระโดดขี่บั้งไฟยักษ์พุ่งชนศัตรูอย่างแรง แล้วกระโดดลง", cd: 18, ult: true,
+      charge: 1.0, chargeColor: "#ffb02e", chargeFrame: 0, frameOffset: 1, sound: "rocket",
+      dur: 0.9, frames: [0, 0.4, 0.8], icon: "rocket",
+      dash: { dist: 620, time: 0.62, forward: true, hopOff: 420, ride: { key: "rocket", scale: 2.1, lift: 24 },
+        hit: { dmg: [70, 90], power: 2, kb: 300, knockdown: 1.5, crit: 0.3, sparkColor: "#ffb02e", sparkColor2: "#ff5a1f",
+          fx: [{ key: "fireblast", dx: 10, dy: -10, anchor: "left", life: 0.5, s0: 0.7, s1: 1.3 }, { shockwave: true }],
+          targetFx: [{ key: "groundfire", dy: 4, anchor: "bottom", life: 1.2, s0: 1.8, s1: 2.4 }] } },
+    },
+    rain: {
+      name: "ฝนบั้งไฟ", desc: "ไม้ตาย จุดบั้งไฟที่พื้น 5 วินาทีต่อจากนั้นบั้งไฟตกจากฟ้าใส่ศัตรู วินาทีละ 2 ลูก รวม 10 ลูก", cd: 22, ult: true,
+      dur: 0.8, frames: [0, 0.3, 0.6], icon: "groundfire",
+      rain: { at: 0.6, delay: 0.4, duration: 5, count: 10, height: 330, spread: 80,
+        shot: { fx: "rocket", straight: true, range: 900, speed: 700, scale: 0.6, trail: "#d8d0c0", groundFx: "groundfire", splash: 60,
+          dmg: [12, 16], power: 1, kb: 40, crit: 0.2, sparkColor: "#ffb02e" } },
     },
   },
-  skillOrder: ["rocketrain", "bigrocket", "barrage"],
-  defaultLoadout: ["rocketrain", "bigrocket", "barrage"],
+  skillOrder: ["monkey", "talai", "doubleknee", "tenk", "bigride", "rain"],
+  defaultLoadout: ["monkey", "talai", "bigride"],
 };
