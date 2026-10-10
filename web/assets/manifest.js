@@ -41,7 +41,8 @@ window.MANIFEST = {
   "thunderball": "assets/vfx_thunderball.png",
   "whirl": "assets/vfx_whirl.png",
   "rocket": "assets/vfx_rocket.png",
-  "talai": "assets/vfx_talai.png"
+  "talai": "assets/vfx_talai.png",
+  "rocketride": "assets/vfx_rocketride.png"
  },
  "vfxAnim": {
   "bird": {
