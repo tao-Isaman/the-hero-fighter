@@ -340,7 +340,7 @@
     const near = state.popups.filter((q) => q.t < 0.45 && Math.abs(q.x - x) < 70).length;
     state.popups.push({
       x, y: y - near * (crit ? 30 : 22), amount, crit, t: 0, life: crit ? 1.1 : opts.skill ? 1.0 : 0.8,
-      dx: rand(-14, 14), skill: !!opts.skill, enemy: !!opts.enemy,
+      dx: rand(-14, 14), skill: !!opts.skill, enemy: !!opts.enemy, color: opts.color,
     });
   }
 
@@ -372,7 +372,8 @@
     const critBonus = attacker.buffT > 0 && attacker.buff ? attacker.buff.crit || 0 : 0;
     const crit = Math.random() < (o.crit ?? 0.2) + critBonus;
     const buffed = attacker.buffT > 0 && attacker.buff;
-    const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1) * (buffed ? buffed.dmg : 1));
+    const guard = target.buffT > 0 && target.buff && target.buff.guard;   // a guarding buff shrinks the blow
+    const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1) * (buffed ? buffed.dmg || 1 : 1) * (guard || 1));
     target.hp = Math.max(0, target.hp - dmg);
     target.flash = 0.75;
 
@@ -403,7 +404,13 @@
     attacker.comboTimer = 1.6;
     state.hitStop = (crit ? 0.12 : 0.06) + (o.power || 0) * 0.03;
     state.shake = Math.max(state.shake, (crit ? 8 : 3) + (o.power || 0) * 3);
-    sfx.hit(o.sfx || (buffed ? "fire" : weaponOf(attacker, o)), o.power || 0, crit);
+    sfx.hit(o.sfx || (buffed ? buffed.hitSfx || "fire" : weaponOf(attacker, o)), o.power || 0, crit);
+    if (guard) addSparks(target.x, target.y - 70, 10, target.buff.color || "#ffffff");
+    // a buff that feeds on hits: every blow that lands keeps it going a little longer
+    if (buffed && buffed.extendOnHit) {
+      attacker.buffT += buffed.extendOnHit;
+      for (const v of state.vfx) if (v.follow === attacker && v.buffAura) v.life += buffed.extendOnHit;
+    }
     const hy = target.y - 112;
     addPopup(target.x + rand(-10, 10), hy, dmg, crit, { skill: !!o.skill, enemy: target.ctrl === "human" });
     addSparks(target.x - o.dir * 14, hy + 34, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
@@ -491,11 +498,15 @@
     const atk = curAttack(f);
     if (atk.fx) spawnFx(f, atk.fx);      // slash marks show even on a miss
     if (atk.shot) { fireShot(f, atk.shot); return; }   // thrown attacks hit when the projectile does
+    const B = f.buffT > 0 && f.buff;
+    const reach = atk.reach * (B && B.reach ? B.reach : 1);
+    if (B && B.atkFx) addVfx(B.atkFx.key, f.x + f.facing * reach * 0.55, f.y - (atk.plunge ? 30 : 70), {
+      life: 0.3, s0: B.atkFx.s0 ?? 1, s1: B.atkFx.s1 ?? 1.3, flip: f.facing, opacity: 0.9 });
     const dx = (o.x - f.x) * f.facing;
     if (o.hp <= 0) return;
     if (atk.plunge) {
-      if (Math.abs(o.x - f.x) > atk.reach) return;       // the slam hits all around the landing spot
-    } else if (dx < -20 || dx > atk.reach) {
+      if (Math.abs(o.x - f.x) > reach) return;       // the slam hits all around the landing spot
+    } else if (dx < -20 || dx > reach) {
       return;
     }
     if (Math.abs(o.y - f.y) > 130) return;               // one is far above the other
@@ -587,7 +598,8 @@
   function skillHit(f, h) {
     if (!inReach(f, h.reach, h.both)) return;
     const o = f.opp;
-    hitFighter(o, { crit: 0.22, kb: 50, ...h, skill: true, dir: h.both ? Math.sign(o.x - f.x) || f.facing : f.facing }, f);
+    const landed = hitFighter(o, { crit: 0.22, kb: 50, ...h, skill: true, dir: h.both ? Math.sign(o.x - f.x) || f.facing : f.facing }, f);
+    if (landed && h.yank && o.hp > 0) { o.yankTo = f.x + f.facing * h.yank; o.yankT = h.yankTime || 0.22; o.kvx = 0; }
   }
 
   // returns true while the skill owns the fighter
@@ -769,6 +781,12 @@
       f.buffT = def.buff.dur;
       f.buff = def.buff;
       if (def.buff.aura) spawnFx(f, [{ ...def.buff.aura, life: def.buff.dur, follow: true, buffAura: true }]);
+      if (def.buff.heal) {
+        const gain = Math.min(def.buff.heal, f.maxHp - f.hp);
+        f.hp += gain;
+        addPopup(f.x, f.y - 130, "+" + gain, false, { skill: true, color: "#9dffb0" });
+        addSparks(f.x, f.y - 70, 24, def.buff.color || "#ffffff");
+      }
       sfx.boom(0.8);
     }
 
@@ -892,7 +910,7 @@
           s0: e.s0 ?? 1, s1: e.s1 ?? 1, rot: (e.rot || 0) * dir, flip: dir,
           anchor: e.anchor || "center", stretch: !!e.stretch, back: !!e.back,
           follow: e.follow ? f : null, opacity: e.opacity ?? 1,
-          fdy: e.follow ? y - f.y : undefined, buffAura: !!e.buffAura, glow: e.glow ?? true,
+          fdy: e.follow ? y - f.y : undefined, fdx: e.follow ? e.behind || 0 : 0, buffAura: !!e.buffAura, glow: e.glow ?? true,
         });
       }
       if (e.shockwave) addShockwave(x, GROUND_Y);
@@ -964,6 +982,12 @@
     if (f.comboTimer <= 0) f.comboCount = 0;
     f.shownHp += (f.hp - f.shownHp) * Math.min(1, dt * 3);
 
+    // dragged in by a hooked weapon
+    if (f.yankT > 0) {
+      f.yankT -= dt;
+      f.x += (f.yankTo - f.x) * Math.min(1, dt * 14);
+      if (chance(0.6)) addSparks(f.x, f.y - rand(40, 100), 1, "#b0121e");
+    }
     // knockback slides the body regardless of what it is doing
     f.x += f.kvx * dt;
     f.kvx *= Math.pow(0.002, dt);
@@ -1439,7 +1463,7 @@
       v.t += dt;
       v.x += v.vx * dt;
       v.y += v.vy * dt;
-      if (v.follow) { v.x = v.follow.x; if (v.fdy !== undefined) v.y = v.follow.y + v.fdy; }
+      if (v.follow) { v.x = v.follow.x - v.follow.facing * (v.fdx || 0); if (v.fdy !== undefined) v.y = v.follow.y + v.fdy; }
     }
     state.vfx = state.vfx.filter((v) => v.t < v.life);
     for (const pp of state.popups) pp.t += dt;
@@ -1655,7 +1679,7 @@
         ctx.lineWidth = pp.skill ? 5 : 4;
         ctx.strokeStyle = pp.skill ? "#3a1204" : "#120d1c";
         ctx.strokeText(pp.amount, 0, 0);
-        ctx.fillStyle = pp.enemy ? "#ff8a80" : pp.skill ? "#ffb347" : "#ffffff";
+        ctx.fillStyle = pp.color || (pp.enemy ? "#ff8a80" : pp.skill ? "#ffb347" : "#ffffff");
         ctx.fillText(pp.amount, 0, 0);
         ctx.restore();
       }

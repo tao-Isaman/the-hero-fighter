@@ -44,7 +44,13 @@ window.MANIFEST = {
   "talai": "assets/vfx_talai.png",
   "rocketride": "assets/vfx_rocketride.png",
   "bigride": "assets/vfx_bigride.png",
-  "taphotwave": "assets/vfx_taphotwave.png"
+  "taphotwave": "assets/vfx_taphotwave.png",
+  "spiritwave": "assets/vfx_spiritwave.png",
+  "bloodslash": "assets/vfx_bloodslash.png",
+  "spiritshield": "assets/vfx_spiritshield.png",
+  "spiritguard": "assets/vfx_spiritguard.png",
+  "whiteimpact": "assets/vfx_whiteimpact.png",
+  "bloodring": "assets/vfx_bloodring.png"
  },
  "vfxAnim": {
   "bird": {
