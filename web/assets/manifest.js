@@ -42,7 +42,8 @@ window.MANIFEST = {
   "whirl": "assets/vfx_whirl.png",
   "rocket": "assets/vfx_rocket.png",
   "talai": "assets/vfx_talai.png",
-  "rocketride": "assets/vfx_rocketride.png"
+  "rocketride": "assets/vfx_rocketride.png",
+  "bigride": "assets/vfx_bigride.png"
  },
  "vfxAnim": {
   "bird": {
