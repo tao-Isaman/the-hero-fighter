@@ -1558,6 +1558,18 @@
     }
     const blink = f.invulnT > 0 && f.downT <= 0 && Math.floor(f.invulnT * 20) % 2 === 0 ? 0.55 : 1;
     drawFrame(a, frame, f.x - camX + ox, f.y - lift, f.facing, f.kit.scale, blink, f.flash, rot);
+    if (ride && f.skill.dashing && ride.rope) {
+      // the reins: a taut rope from the fists to the rocket's nose
+      const [hx, hy] = ride.rope.hand, [nx, ny] = ride.rope.nose;
+      const x0 = f.x - camX + f.facing * hx, y0 = f.y - lift + hy, x1 = f.x - camX + f.facing * nx, y1 = f.y - lift + ny;
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#3a2414"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 + 6, x1, y1); ctx.stroke();
+      ctx.strokeStyle = "#a8743f"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo((x0 + x1) / 2, (y0 + y1) / 2 + 6, x1, y1); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   function drawStunStars(camX) {
