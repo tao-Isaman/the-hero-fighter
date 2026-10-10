@@ -602,6 +602,14 @@
 <script>
   // Installable app + offline play (skipped where service workers aren't allowed, e.g. sandboxed previews)
   if ("serviceWorker" in navigator && window.isSecureContext && window.top === window) {
-    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    addEventListener("load", () => {
+      // when a new version's worker takes over, reload once so the new game files are used right away
+      const hadWorker = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (hadWorker && !reloaded) { reloaded = true; location.reload(); }
+      });
+      navigator.serviceWorker.register("sw.js").then((reg) => reg.update()).catch(() => {});
+    });
   }
 </script>
