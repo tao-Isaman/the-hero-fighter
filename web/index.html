@@ -400,8 +400,10 @@
   .sel-col .char-list { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
   /* every card the same size: the face on top, the name in a fixed two-line box under it */
   .sel-col .char-list li { display: flex; }
-  .sel-col .char { padding: 8px 6px; font-size: 0.85rem; gap: 6px; line-height: 1.25; height: 100%; align-content: start; grid-template-rows: auto calc(2lh); }
-  .sel-col .char span { display: flex; align-items: center; justify-content: center; text-align: center; }
+  .sel-col .char { padding: 8px 6px; font-size: 0.85rem; gap: 6px; line-height: 1.25; height: 100%; align-content: start; }
+  /* the name box is always two lines tall (2 × line-height), so one-line names don't make shorter cards */
+  .sel-col .char span { display: flex; align-items: center; justify-content: center; text-align: center;
+    height: 2.5em; overflow: hidden; }
   .sel-col .char canvas { width: 64px; height: 64px; border-color: var(--dusk); }
   .sel-col[data-side="p1"] .char.on { border-color: var(--gold); }
   .sel-col[data-side="p1"] .char.on canvas { border-color: var(--gold); }
