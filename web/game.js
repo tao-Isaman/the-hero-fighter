@@ -946,8 +946,9 @@
         // wind up in the air, then dive; the strike frame lands with the body
         if (!f.onGround) {
           if (f.t > animDef.duration * animDef.playFor * 0.25) {
-            f.vy = Math.max(f.vy, 980);
-            f.vx = f.facing * 110;
+            // plungeVx/plungeVy set the dive angle (equal values = 45 degrees)
+            f.vy = Math.max(f.vy, atk.plungeVy ?? 980);
+            f.vx = f.facing * (atk.plungeVx ?? 110);
           } else {
             f.vy = Math.min(f.vy, 0);
             f.vx = 0;

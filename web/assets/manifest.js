@@ -32,7 +32,9 @@ window.MANIFEST = {
   "jungleaura": "assets/vfx_jungleaura.png",
   "leaves": "assets/vfx_leaves.png",
   "bullet": "assets/vfx_bullet.png",
-  "pistol": "assets/vfx_pistol.png"
+  "pistol": "assets/vfx_pistol.png",
+  "goldbolt": "assets/vfx_goldbolt.png",
+  "goldburst": "assets/vfx_goldburst.png"
  },
  "vfxAnim": {
   "bird": {
