@@ -1538,12 +1538,12 @@
       if (img) {
         const sc = ride.scale || 2;
         ctx.save();
-        ctx.translate(Math.round(f.x - camX), Math.round(f.y - lift + 6));
+        ctx.translate(Math.round(f.x - camX + f.facing * (ride.dx || 0)), Math.round(f.y - lift + (ride.dy == null ? 6 : ride.dy)));
         ctx.scale(f.facing * sc, sc);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
         ctx.restore();
       }
-      addSparks(f.x - f.facing * 90, f.y - lift + 8, 2, "#ffb02e");
+      addSparks(f.x + f.facing * ((ride.dx || 0) - 90 * (ride.scale || 2) / 2), f.y - lift + (ride.dy == null ? 8 : ride.dy), 2, "#ffb02e");
     }
 
     // reactions: shake while stunned by a hit, tip over when knocked down, tumble in the air

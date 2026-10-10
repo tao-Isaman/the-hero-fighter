@@ -87,7 +87,7 @@ window.CHARACTERS.baksiang = {
       name: "บั้งไฟล้าน", desc: "ไม้ตาย ชาร์จ 1 วิ กระโดดขี่บั้งไฟยักษ์พุ่งชนศัตรูอย่างแรง แล้วกระโดดลง", cd: 18, ult: true,
       charge: 1.0, chargeColor: "#ffb02e", chargeFrame: 0, frameOffset: 1, sound: "rocket",
       dur: 0.9, frames: [0, 0.4, 0.8], icon: "rocket",
-      dash: { dist: 620, time: 0.62, forward: true, hopOff: 420, ride: { key: "rocket", scale: 2.1, lift: 24, rope: { hand: [51, -63], nose: [144, 10] } },
+      dash: { dist: 620, time: 0.62, forward: true, hopOff: 420, ride: { key: "rocket", scale: 1.5, lift: 55, dx: -55, dy: 17, rope: { hand: [51, -63], nose: [48, 20] } },
         hit: { dmg: [70, 90], power: 2, kb: 300, knockdown: 1.5, crit: 0.3, sparkColor: "#ffb02e", sparkColor2: "#ff5a1f",
           fx: [{ key: "fireblast", dx: 10, dy: -10, anchor: "left", life: 0.5, s0: 0.7, s1: 1.3 }, { shockwave: true }],
           targetFx: [{ key: "groundfire", dy: 4, anchor: "bottom", life: 1.2, s0: 1.8, s1: 2.4 }] } },
