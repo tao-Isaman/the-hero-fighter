@@ -53,6 +53,7 @@ window.MANIFEST = {
   "bloodring": "assets/vfx_bloodring.png",
   "soulicon": "assets/vfx_soulicon.png",
   "bloodicon": "assets/vfx_bloodicon.png",
+  "yanttiger": "assets/vfx_yanttiger.png",
   "ic_baksiang_bigride": "assets/icons/baksiang_bigride.png",
   "ic_baksiang_doubleknee": "assets/icons/baksiang_doubleknee.png",
   "ic_baksiang_monkey": "assets/icons/baksiang_monkey.png",

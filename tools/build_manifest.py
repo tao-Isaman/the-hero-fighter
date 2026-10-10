@@ -10,7 +10,7 @@ VFX = ["bird", "naga", "chakra", "tiger", "rocks", "yama", "storm",
        "crack", "fists", "blades", "buffalo", "groundfire", "guard",
        "magnet", "ramasun", "wind", "sunfire", "icespear", "blink", "blinkrift",
        "claw", "clawheavy", "clawx", "tigerclaw", "tigerbeast", "jungleaura", "leaves", "bullet", "pistol",
-       "goldbolt", "goldburst", "bluebolt", "goldbeam", "fireblast", "thunderball", "whirl", "rocket", "talai", "rocketride", "bigride", "taphotwave", "spiritwave", "bloodslash", "spiritshield", "spiritguard", "whiteimpact", "bloodring", "soulicon", "bloodicon"]
+       "goldbolt", "goldburst", "bluebolt", "goldbeam", "fireblast", "thunderball", "whirl", "rocket", "talai", "rocketride", "bigride", "taphotwave", "spiritwave", "bloodslash", "spiritshield", "spiritguard", "whiteimpact", "bloodring", "soulicon", "bloodicon", "yanttiger"]
 # animated effect sheets from tools/fetch_vfx.py: key -> (fps, loop)
 VFX_ANIM = {"bird": (16, True), "naga": (18, True), "tiger": (18, True),
             "rocks": (0, False), "yama": (0, False), "storm": (16, True),
