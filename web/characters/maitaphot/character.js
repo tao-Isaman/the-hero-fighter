@@ -97,9 +97,9 @@ window.CHARACTERS.maitaphot = {
         aura: { key: "spiritshield", dy: -8, s0: 1.5, s1: 1.6, opacity: 0.35 } },
     },
     blood: {
-      name: "ไม้ตะพดเลือด", desc: "ไม้ตาย เคลือบไม้ด้วยเลือดปีศาจ ระยะโจมตีธรรมดา 2 เท่า 5 วินาที ตีโดนต่อเวลา 0.5 วิ", cd: 20, ult: true, dur: 0.7,
+      name: "ไม้ตะพดเลือด", desc: "ไม้ตาย เคลือบไม้ด้วยเลือดปีศาจ ระยะโจมตีธรรมดา 2 เท่า 6 วินาที", cd: 20, ult: true, dur: 0.7,
       frames: [0, 0.3, 0.6], icon: "bloodring",
-      buff: { at: 0.5, dur: 5, reach: 2, extendOnHit: 0.5, hitSfx: "stick", color: "#d01a2a", hitFx: "bloodring",
+      buff: { at: 0.5, dur: 6, reach: 2, hitSfx: "stick", color: "#d01a2a", hitFx: "bloodring",
         hitSparks: [[8, "#c4121f"]],
         atkFx: { key: "bloodslash", s0: 1.5, s1: 2.2 },
         aura: { key: "bloodring", dy: -6, s0: 1.7, s1: 1.9, opacity: 0.45, back: true } },
