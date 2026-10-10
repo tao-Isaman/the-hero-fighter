@@ -9,7 +9,7 @@ window.CHARACTERS.nangsuea = {
   sfx: "claw",
 
   sprite: { frameW: 224, frameH: 224, anchorX: 95, anchorY: 220, scale: 0.62 },
-  portrait: { image: "sprites/portrait.png", crop: { x: 86, y: 58, w: 48, h: 48 } },
+  portrait: { image: "sprites/portrait.png", crop: { x: 80, y: 58, w: 48, h: 48 } },
 
   anims: {
     idle: { image: "sprites/idle.png", fps: 9, loop: true },

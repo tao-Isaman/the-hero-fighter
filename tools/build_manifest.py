@@ -29,7 +29,9 @@ manifest = {
     "worldWidth": 2600,
     "groundY": 306,
     "background": "assets/bg_village.png",
-    "vfx": {k: f"assets/vfx_{k}.png" for k in VFX},
+    "vfx": {**{k: f"assets/vfx_{k}.png" for k in VFX},
+            # per-skill icons from tools/make_icons.py: ic_<character>_<skill>
+            **{"ic_" + n[:-4]: f"assets/icons/{n}" for n in sorted(os.listdir(f"{A}/icons")) if n.endswith(".png")}},
     "vfxAnim": vfx_anim,
 }
 with open(f"{A}/manifest.js", "w") as f:

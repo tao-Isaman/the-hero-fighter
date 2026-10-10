@@ -37,6 +37,8 @@
         loop: false, ...cfg, image: base + cfg.image,
       };
     }
+    // every skill shows its own icon (assets/icons/<id>_<skill>.png, see tools/make_icons.py) when one exists
+    for (const [sid, def] of Object.entries(c.skills)) if (M.vfx[`ic_${id}_${sid}`]) def.icon = `ic_${id}_${sid}`;
     return { id, c, anims, scale: c.sprite.scale, portrait: base + c.portrait.image };
   }
   const KITS = Object.fromEntries(ROSTER.map((id) => [id, makeKit(id)]));
@@ -551,8 +553,8 @@
     f.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false, dashTo: null, ct: 0, trailT: 0 };
     // auto-target: turn toward the opponent, and melee skills dash in to reach them
     const d = f.opp.x - f.x;
-    f.facing = Math.sign(d) || f.facing;
-    if (def.assist && Math.abs(d) > def.assist && Math.abs(d) < def.assist + 200) f.skill.dashTo = f.opp.x - f.facing * def.assist;
+    if (f.ctrl !== "human") f.facing = Math.sign(d) || f.facing;
+    if (def.assist && Math.sign(d) === f.facing && Math.abs(d) > def.assist && Math.abs(d) < def.assist + 200) f.skill.dashTo = f.opp.x - f.facing * def.assist;
     f.anim = "sk_" + id;
     f.t = 0;
     f.vx = 0;
@@ -1030,7 +1032,7 @@
         f.air = false;
         const ground = f.kit.c.combo;
         const next = f.sinceAttack < COMBO_WINDOW && f.lastCombo < ground.length - 1 ? f.lastCombo + 1 : 0;
-        f.facing = Math.sign(o.x - f.x) || f.facing;
+        if (f.ctrl !== "human") f.facing = Math.sign(o.x - f.x) || f.facing;   // the player turns by walking
         startAttack(f, next);
       } else if (!attacking && !f.airUsed) {
         f.air = true;
@@ -1086,8 +1088,9 @@
       let dir = 0;
       if (input.keys.has("left")) dir -= 1;
       if (input.keys.has("right")) dir += 1;
-      // fighters always face each other; walking away is a back-step
-      f.facing = Math.sign(o.x - f.x) || f.facing;
+      // the player faces the way they walk; the AI always faces its opponent (walking away is a back-step)
+      if (f.ctrl === "human") { if (dir) f.facing = dir; }
+      else f.facing = Math.sign(o.x - f.x) || f.facing;
       const haste = f.buffT > 0 && f.buff ? f.buff.speed || 1 : 1;
       f.vx = dir * f.kit.c.walkSpeed * haste * (dir === f.facing ? 1 : 0.75);
 
