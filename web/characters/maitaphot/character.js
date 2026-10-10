@@ -91,7 +91,7 @@ window.CHARACTERS.maitaphot = {
     },
     soul: {
       name: "ไม้ตะพดวิญญาณ", desc: "ไม้ตาย ฟื้นพลังชีวิต 120 และลดความเสียหายที่ได้รับครึ่งหนึ่ง 5 วินาที", cd: 20, ult: true, dur: 0.8,
-      frames: [0, 0.3, 0.6], icon: "spiritguard",
+      frames: [0, 0.3, 0.6], icon: "soulicon",
       aura: { key: "spiritguard", behind: 22, dy: -34, s0: 1.5, s1: 1.9, opacity: 0.75 },
       buff: { at: 0.45, dur: 5, heal: 120, guard: 0.5, hitSfx: "stick", color: "#e8f4ff",
         aura: { key: "spiritshield", dy: -8, s0: 1.5, s1: 1.6, opacity: 0.35 } },

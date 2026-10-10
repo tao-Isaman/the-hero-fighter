@@ -50,7 +50,8 @@ window.MANIFEST = {
   "spiritshield": "assets/vfx_spiritshield.png",
   "spiritguard": "assets/vfx_spiritguard.png",
   "whiteimpact": "assets/vfx_whiteimpact.png",
-  "bloodring": "assets/vfx_bloodring.png"
+  "bloodring": "assets/vfx_bloodring.png",
+  "soulicon": "assets/vfx_soulicon.png"
  },
  "vfxAnim": {
   "bird": {
