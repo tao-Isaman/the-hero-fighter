@@ -3,6 +3,12 @@ window.MANIFEST = {
  "worldWidth": 2600,
  "groundY": 306,
  "background": "assets/bg_village.png",
+ "backgrounds": [
+  "assets/bg_alley.png",
+  "assets/bg_river.png",
+  "assets/bg_ruins.png",
+  "assets/bg_village.png"
+ ],
  "vfx": {
   "bird": "assets/vfx_bird.png",
   "naga": "assets/vfx_naga.png",

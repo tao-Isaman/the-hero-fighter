@@ -66,7 +66,7 @@
   // ---------- assets ----------
   const images = {};
   function loadImages() {
-    const names = new Set([M.background]);
+    const names = new Set(M.backgrounds || [M.background]);
     for (const kit of Object.values(KITS)) {
       names.add(kit.portrait);
       for (const a of Object.values(kit.anims)) names.add(a.image);
@@ -316,6 +316,10 @@
     };
   }
 
+  function randomStage() {
+    const list = M.backgrounds && M.backgrounds.length ? M.backgrounds : [M.background];
+    return list[Math.floor(Math.random() * list.length)];
+  }
   function reset() {
     const p1 = newFighter(p1Kit, 220, 1, "human", p1Loadout);
     const p2 = newFighter(KITS[P2_ID], 470, -1, "ai", aiLoadout(KITS[P2_ID]));
@@ -323,6 +327,7 @@
     p2.opp = p1;
     state = {
       p1, p2, fighters: [p1, p2],
+      bg: randomStage(),   // a different stage every match
       camX: (220 + 470) / 2 - W / 2,
       popups: [], sparks: [], waves: [], vfx: [], shots: [], banners: [],
       flashRed: 0, dim: 0, time: 0,
@@ -1489,7 +1494,7 @@
 
   // ---------- render ----------
   function drawBackground(camX) {
-    const img = images[M.background];
+    const img = images[state.bg] || images[M.background];
     const s = H / img.height;
     const tw = img.width * s;
     const first = Math.floor(camX / tw);
