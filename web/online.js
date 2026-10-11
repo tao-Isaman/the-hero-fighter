@@ -807,7 +807,15 @@
     const tail = room.role === "spec" ? `ผู้ชม ${room.specs}` : room.bot ? "BOT" : room.link === "p2p" ? "P2P" : room.link === "relay" ? "RELAY" : "…";
     netbarText(`${n.host || "?"}  ${room.score.p1} - ${room.score.p2}  ${n.guest || "?"}  ·  ยก ${room.round + 1}  ·  ${tail}`);
   }
-  function netbarText(t) { netbar.hidden = false; $("#netbar span").textContent = t; }
+  function netbarText(t) { netbar.hidden = false; $("#netbar span").textContent = t; placeNetbar(); }
+  // just under the health bars (they end at y = 37 of the game's 360-px-tall view), never over them
+  function placeNetbar() {
+    const c = document.querySelector("canvas");
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    netbar.style.top = Math.round(r.top + (r.height * 40) / 360) + "px";
+  }
+  addEventListener("resize", () => { if (!netbar.hidden) placeNetbar(); });
   $("#netbar button").addEventListener("click", () => { leaveRoom(true); lobby(); });
 
   // menu sounds for every button on the menu screens (home, online, select, skills)
