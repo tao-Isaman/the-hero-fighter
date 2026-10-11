@@ -336,6 +336,11 @@
   .on-chars li { display: flex; }
   .home-row { display: flex; gap: 8px; width: 100%; }
   .home-row .sel-back { flex: 1; }
+  .home-row .sel-back[hidden] { display: none; }
+  .home-row .install { border-color: var(--gold); color: var(--gold); }
+  .install-help { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--night); border: 1px solid var(--gold); color: var(--paper); font-size: 0.9rem; line-height: 1.5; }
+  .install-help[hidden] { display: none; }
+  .home-panel.helping > small, .home-panel.helping > p:not(.install-help) { display: none; }   /* room for the steps on phones */
   .on-me { margin: 0; color: var(--gold); font-size: 0.95rem; }
   .on-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .on-row {
@@ -733,7 +738,9 @@
     <div class="home-row">
       <button id="home-rank" class="sel-back" type="button">อันดับผู้เล่น</button>
       <button id="home-stats" class="sel-back" type="button">สถิติเกม</button>
+      <button id="home-install" class="sel-back install" type="button" hidden>ติดตั้งเกม</button>
     </div>
+    <p id="install-help" class="install-help" hidden></p>
     <small>ออนไลน์: จับคู่ด่วน สร้างห้องเล่นกับเพื่อน หรือเข้าไปดูการแข่ง · แข่ง 2 ใน 3 ยก</small>
   </div>
 </div>
@@ -785,4 +792,35 @@
       navigator.serviceWorker.register("sw.js").then((reg) => reg.update()).catch(() => {});
     });
   }
+
+  // "ติดตั้งเกม" on the home screen: the browser's own install prompt (Chrome / Edge / Android),
+  // or how-to steps on iPhone / iPad, where Safari has no prompt. Hidden once installed.
+  (() => {
+    const btn = document.getElementById("home-install"), help = document.getElementById("install-help");
+    const installed = () => matchMedia("(display-mode: standalone)").matches || matchMedia("(display-mode: fullscreen)").matches || navigator.standalone === true;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const track = (action) => window.MF?.track("install", { action, ios });
+    let deferred = null;
+    if (installed()) return;
+    if (ios) btn.hidden = false;
+    addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; btn.hidden = false; });
+    addEventListener("appinstalled", () => { btn.hidden = true; help.hidden = true; deferred = null; track("installed"); });
+    btn.addEventListener("click", async () => {
+      if (deferred) {
+        const d = deferred;
+        deferred = null;
+        d.prompt();
+        const { outcome } = await d.userChoice.catch(() => ({ outcome: "dismissed" }));
+        track(outcome);
+        if (outcome === "accepted") btn.hidden = true;
+        return;
+      }
+      help.textContent = ios
+        ? "กดปุ่มแชร์ (สี่เหลี่ยมมีลูกศรชี้ขึ้น) แล้วเลือก \"เพิ่มไปยังหน้าจอโฮม\" เกมจะเปิดเต็มจอเหมือนแอป"
+        : "เปิดเมนูของเบราว์เซอร์ (⋮) แล้วเลือก \"ติดตั้งแอป\" หรือ \"เพิ่มลงในหน้าจอหลัก\"";
+      help.hidden = !help.hidden;
+      help.parentElement.classList.toggle("helping", !help.hidden);
+      if (!help.hidden) track("help");
+    });
+  })();
 </script>

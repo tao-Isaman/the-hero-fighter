@@ -14,6 +14,7 @@
 //   online         { action: quick | create | join | spectate | leave, room }
 //   link           { kind: p2p | relay }
 //   error          { where, msg }
+//   install        { action: accepted | dismissed | help | installed, ios }
 // In online play only the host sends round_end / match_start (the fight runs on the host).
 (() => {
   "use strict";
