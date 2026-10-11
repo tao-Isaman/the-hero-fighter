@@ -231,7 +231,11 @@ window.MANIFEST = {
    "frames": 9
   }
  },
- "music": [],
+ "music": [
+  "assets/music/song1.mp3",
+  "assets/music/song2.mp3",
+  "assets/music/song3.mp3"
+ ],
  "fightMusic": [
   "assets/fightmusic/fight1.mp3",
   "assets/fightmusic/fight2.mp3",
