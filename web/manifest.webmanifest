@@ -1,7 +1,7 @@
 {
   "name": "mFighter (m-Fighter)",
   "short_name": "mFighter",
-  "description": "เกมต่อสู้พิกเซล กัลป์ เกรียงไกร ปะทะ นักสู้พันธุ์ข้าวเหนียว",
+  "description": "mFighter เกมต่อสู้พิกเซลฮีโร่ไทย เล่นกับ CPU หรือออนไลน์",
   "lang": "th",
   "start_url": "./",
   "scope": "./",
