@@ -1,5 +1,6 @@
 -- mFighter online backend, applied to the promptGov Supabase project as migrations
--- mfighter_init and mfighter_report_fix (the latter replaces mf_report_match).
+-- mfighter_init, mfighter_report_fix (replaces mf_report_match) and mfighter_matchmaking
+-- (replaces mf_quick_match / mf_list_rooms, adds mf_touch).
 -- The mfighter schema is not exposed through the API; the game only calls public.mf_* with the
 -- publishable key. Players are guests (random id + name kept on the device), not Supabase Auth
 -- users, so the game never creates accounts or profiles in the host project.
@@ -371,3 +372,53 @@ begin
    where id = m.id;
   return json_build_object('status', 'confirmed', 'delta', delta, 'winner', w);
 end $$;
+
+-- ===== mfighter_matchmaking =====
+-- Matchmaking: quick match prefers the closest rating, and a waiting searcher can hop into an
+-- older search (p_from) so two people who start searching at the same moment still meet.
+drop function if exists public.mf_quick_match(text, text);
+create function public.mf_quick_match(p_player text, p_name text, p_from uuid default null)
+returns json language plpgsql security definer set search_path = mfighter, pg_catalog as $$
+declare r mfighter.rooms; my_rating int; since timestamptz;
+begin
+  perform mfighter.check_player(p_player);
+  select coalesce((select rating from mfighter.players where id = p_player), 1000) into my_rating;
+  if p_from is not null then
+    select created_at into since from mfighter.rooms where id = p_from and host_id = p_player;
+    if since is null then return null; end if;
+  end if;
+  update mfighter.rooms set guest_id = p_player, guest_name = mfighter.clean_name(p_name),
+         guest_token = gen_random_uuid(), updated_at = now()
+   where id = (select ro.id from mfighter.rooms ro
+                 left join mfighter.players hp on hp.id = ro.host_id
+                where ro.status = 'waiting' and ro.is_public and ro.guest_id is null and ro.host_id <> p_player
+                  and ro.updated_at > now() - interval '2 minutes'
+                  and (since is null or ro.created_at < since)
+                order by abs(coalesce(hp.rating, 1000) - my_rating) / 100, ro.created_at
+                limit 1 for update of ro skip locked)
+  returning * into r;
+  if found then
+    return json_build_object('id', r.id, 'code', r.code, 'token', r.guest_token, 'role', 'guest');
+  end if;
+  if p_from is not null then return null; end if;
+  return public.mf_create_room(p_player, p_name, true);
+end $$;
+revoke all on function public.mf_quick_match(text, text, uuid) from public;
+grant execute on function public.mf_quick_match(text, text, uuid) to anon, authenticated;
+
+-- a searcher keeps its search alive (rooms idle for 2 minutes drop out of matchmaking)
+create or replace function public.mf_touch(p_id uuid, p_token uuid)
+returns void language sql security definer set search_path = mfighter, pg_catalog as $$
+  update mfighter.rooms set updated_at = now() where id = p_id and host_token = p_token and status = 'waiting'
+$$;
+revoke all on function public.mf_touch(uuid, uuid) from public;
+grant execute on function public.mf_touch(uuid, uuid) to anon, authenticated;
+
+-- the watch list: rooms with two players (matchmade or private)
+create or replace function public.mf_list_rooms()
+returns table (id uuid, code text, status text, host_name text, guest_name text, updated_at timestamptz)
+language sql security definer set search_path = mfighter, pg_catalog as $$
+  select id, code, status, host_name, guest_name, updated_at from mfighter.rooms
+   where status <> 'done' and guest_id is not null and updated_at > now() - interval '30 minutes'
+   order by (status = 'playing') desc, updated_at desc limit 30
+$$;

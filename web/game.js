@@ -1368,7 +1368,7 @@
   function toggleNormal(id) {
     const i = draft.normals.indexOf(id);
     if (i >= 0) draft.normals.splice(i, 1);
-    else if (draft.normals.length < 2) draft.normals.push(id);
+    else if (draft.normals.length < 2) { draft.normals.push(id); if (draft.normals.length === 2) picker.dataset.tab = "ult"; }
     else {
       const note = picker.querySelector(".pick-note");
       note.textContent = "สกิลธรรมดาเลือกได้ 2 ท่า แตะท่าที่เลือกไว้เพื่อถอดออกก่อน";
@@ -1377,12 +1377,15 @@
     }
     renderPicker();
   }
+  // on short (phone) screens the two skill groups are tabs, so nothing needs scrolling
+  for (const b of picker.querySelectorAll(".pick-tabs button")) b.addEventListener("click", () => { picker.dataset.tab = b.dataset.tab; });
   function openSkillStep() {
     const set = savedLoadout(KITS[pick.p1]);
     draft.normals = set.slice(0, 2);
     draft.ult = set[2] || null;
     charsel.hidden = true;
     picker.hidden = false;
+    picker.dataset.tab = "normal";
     renderPicker();
     picker.querySelector(".pick-done").focus();
   }

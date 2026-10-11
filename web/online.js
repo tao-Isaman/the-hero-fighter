@@ -91,8 +91,36 @@
     return f;
   }
 
-  // ---------- lobby ----------
-  let lobbyTimer = null;
+  // ---------- small building blocks: tabs and pages instead of long scrolling screens ----------
+  const perPage = () => (innerHeight < 520 ? 4 : 8);
+  function tabs(p, names, current, onPick, cls = "") {
+    const bar = el("div", "on-tabs " + cls);
+    names.forEach((n, i) => bar.append(button(n, "sel-back" + (i === current ? " on" : ""), () => onPick(i))));
+    p.append(bar);
+    const pane = el("div", "on-pane");
+    p.append(pane);
+    return pane;
+  }
+  function pager(pane, items, renderItem, emptyText) {
+    let page = 0;
+    const list = el("ol", "on-board"), nav = el("div", "on-pager");
+    const draw = () => {
+      const per = perPage(), pages = Math.max(1, Math.ceil(items.length / per));
+      page = Math.min(page, pages - 1);
+      list.textContent = "";
+      if (!items.length) list.append(el("li", "on-empty", emptyText));
+      for (const it of items.slice(page * per, (page + 1) * per)) list.append(renderItem(it));
+      nav.textContent = "";
+      if (pages > 1) nav.append(button("‹", "sel-back", () => { page = Math.max(0, page - 1); draw(); }), el("span", null, `${page + 1} / ${pages}`),
+        button("›", "sel-back", () => { page = Math.min(pages - 1, page + 1); draw(); }));
+    };
+    draw();
+    pane.append(list, nav);
+    return { set(next) { items = next; draw(); } };
+  }
+
+  // ---------- lobby: play (matchmaking, friends) | watch ----------
+  let lobbyTimer = null, lobbyTab = 0;
   function lobby() {
     clearInterval(lobbyTimer);
     show("online");
@@ -103,26 +131,44 @@
     const showMine = () => { if (myRating) mine.textContent = myRating.matches ? `คะแนน ${myRating.rating} · อันดับ ${myRating.rank} · ชนะ ${myRating.wins} แพ้ ${myRating.losses}` : `คะแนนเริ่มต้น ${myRating.rating} · ชนะเกมออนไลน์เพื่อขึ้นอันดับ`; };
     if (myRating) showMine();
     else rpc("mf_hello", { p_player: player.id, p_name: player.name }).then((r) => { myRating = r; showMine(); }).catch(() => {});
-    const acts = el("div", "on-acts");
-    const quick = button("จับคู่ด่วน", "pick-done", () => run(quick, async () => { track("online", { action: "quick" }); enterRoom(await rpc("mf_quick_match", { p_player: player.id, p_name: player.name })); }));
-    const create = button("สร้างห้องส่วนตัว", "pick-done alt", () => run(create, async () => { track("online", { action: "create" }); enterRoom(await rpc("mf_create_room", { p_player: player.id, p_name: player.name, p_public: false })); }));
-    acts.append(quick, create);
-    const join = el("form", "on-form");
-    const code = el("input", "on-input code");
-    code.maxLength = 5; code.placeholder = "รหัสห้อง"; code.autocapitalize = "characters";
-    const go = button("เข้าห้อง", "sel-back");
-    go.type = "submit";
-    join.append(code, go);
-    join.addEventListener("submit", (e) => {
-      e.preventDefault();
-      if (code.value.trim().length < 5) { code.focus(); return; }
-      run(go, async () => { track("online", { action: "join" }); enterRoom(await rpc("mf_join_room", { p_code: code.value, p_player: player.id, p_name: player.name })); });
-    });
-    const live = el("div", "on-live");
-    live.append(el("h3", "pick-group", "ห้องที่เปิดอยู่"), el("ul", "on-rooms"));
-    p.append(acts, join, live, footer([button("อันดับ", "sel-back", leaderboard), button("เปลี่ยนชื่อ", "sel-back", login)]));
-    refreshRooms();
-    lobbyTimer = setInterval(refreshRooms, 5000);
+    const pane = tabs(p, ["เล่น", "ดูการแข่ง"], lobbyTab, (i) => { lobbyTab = i; lobby(); });
+    if (lobbyTab === 0) {
+      const quick = button("จับคู่ด่วน", "pick-done big", () => run(quick, quickMatch));
+      quick.append(el("small", null, "หาคู่ต่อสู้ที่คะแนนใกล้เคียงให้อัตโนมัติ"));
+      const friends = el("div", "on-friends");
+      const create = button("สร้างห้องเล่นกับเพื่อน", "sel-back", () => run(create, async () => {
+        track("online", { action: "create" });
+        enterRoom(await rpc("mf_create_room", { p_player: player.id, p_name: player.name, p_public: false }));
+      }));
+      const join = el("form", "on-form");
+      const code = el("input", "on-input code");
+      code.maxLength = 5; code.placeholder = "รหัสห้อง"; code.autocapitalize = "characters";
+      const go = button("เข้าห้อง", "sel-back");
+      go.type = "submit";
+      join.append(code, go);
+      join.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (code.value.trim().length < 5) { code.focus(); return; }
+        run(go, async () => { track("online", { action: "join" }); enterRoom(await rpc("mf_join_room", { p_code: code.value, p_player: player.id, p_name: player.name })); });
+      });
+      friends.append(create, join);
+      pane.append(quick, friends);
+    } else {
+      const list = pager(pane, [], roomRow, "ยังไม่มีการแข่งตอนนี้");
+      const refresh = async () => {
+        if (online.hidden || !panel.contains(pane)) { clearInterval(lobbyTimer); return; }
+        try { list.set(await rpc("mf_list_rooms", {})); } catch (_) { /* keep the last list */ }
+      };
+      refresh();
+      lobbyTimer = setInterval(refresh, 5000);
+    }
+    p.append(footer([button("อันดับ", "sel-back", leaderboard), button("เปลี่ยนชื่อ", "sel-back", login)]));
+  }
+  function roomRow(r) {
+    const li = el("li", "on-row wide");
+    li.append(el("span", null, `${r.host_name}  vs  ${r.guest_name}`), el("i", r.status, r.status === "playing" ? "กำลังสู้" : "เตรียมตัว"),
+      button("ดู", "sel-back", () => spectate(r)));
+    return li;
   }
   async function run(btn, fn) {
     btn.disabled = true;
@@ -133,22 +179,30 @@
     }
     btn.disabled = false;
   }
-  async function refreshRooms() {
-    const list = panel.querySelector(".on-rooms");
-    if (!list || online.hidden) { clearInterval(lobbyTimer); return; }
-    let rooms = [];
-    try { rooms = await rpc("mf_list_rooms", {}); } catch (_) { return; }
-    list.textContent = "";
-    if (!rooms.length) { list.append(el("li", "on-empty", "ยังไม่มีห้อง กดจับคู่ด่วนหรือสร้างห้องได้เลย")); return; }
-    for (const r of rooms) {
-      const li = el("li", "on-room");
-      const who = r.guest_name ? `${r.host_name}  vs  ${r.guest_name}` : `${r.host_name}  ·  รอคู่ต่อสู้`;
-      li.append(el("b", null, r.code), el("span", null, who), el("i", r.status, r.status === "playing" ? "กำลังสู้" : "รอ"));
-      if (!r.guest_name) li.append(button("เข้าร่วม", "sel-back", () => run(li.querySelector("button"), async () =>
-        enterRoom(await rpc("mf_join_room", { p_code: r.code, p_player: player.id, p_name: player.name })))));
-      li.append(button("ดู", "sel-back", () => spectate(r)));
-      list.append(li);
-    }
+
+  // matchmaking: join the closest open search, or start one and wait to be found
+  async function quickMatch() {
+    track("online", { action: "quick" });
+    const info = await rpc("mf_quick_match", { p_player: player.id, p_name: player.name });
+    await enterRoom(info, true);
+  }
+  function startSearching() {
+    const r = room;
+    r.searchStart = performance.now();
+    r.searchTimer = setInterval(async () => {
+      if (room !== r || r.present.guest) return;
+      const secs = Math.floor((performance.now() - r.searchStart) / 1000);
+      const t = panel.querySelector(".on-search b");
+      if (t) t.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+      if (secs % 5 === 4) {
+        // someone who started searching earlier is waiting too: go to them
+        try {
+          const older = await rpc("mf_quick_match", { p_player: player.id, p_name: player.name, p_from: r.id });
+          if (older && room === r && !r.present.guest) { await enterRoom(older, true); return; }
+        } catch (_) { /* try again next time */ }
+      }
+      if (secs % 30 === 29) rpc("mf_touch", { p_id: r.id, p_token: r.token }).catch(() => {});
+    }, 1000);
   }
 
   // ---------- the room ----------
@@ -164,10 +218,11 @@
   const mySeat = () => (room.role === "host" ? "host" : "guest");
   const otherSeat = () => (room.role === "host" ? "guest" : "host");
 
-  async function enterRoom(info) {
+  async function enterRoom(info, matchmaking = false) {
     clearInterval(lobbyTimer);
     leaveRoom(true);
     room = blankRoom(info);
+    room.mm = matchmaking;
     room.names[mySeat()] = player.name;
     track("screen", { name: "room" });
     track("online", { action: info.role === "host" ? "host" : "join", room: info.code });
@@ -175,6 +230,7 @@
     room.picks[mySeat()] = { kit: G.roster()[0].id, loadout: sk.loadout, ready: false };
     await joinChannel();
     room.heartbeat = setInterval(() => rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: room.phase === "lobby" ? "waiting" : "playing" }).catch(() => {}), 60000);
+    if (room.mm && room.role === "host") startSearching();
     renderRoom();
   }
 
@@ -232,17 +288,18 @@
     maybeStart();
   }
 
-  // ---------- room screen: pick a fighter (first round only) and skills ----------
+  // ---------- room screen: seats on top, then tabs: fighter | skills | ultimate ----------
   function renderRoom() {
     if (!room || room.role === "spec") return;
     if (room.phase === "fight") return;
     show("online");
     const between = room.phase === "between";
     const result = room.phase === "result";
-    const title = result ? resultTitle() : between ? `ยกที่ ${room.round + 1}` : `ห้อง ${room.code}`;
-    const note = result ? "" : between ? "เลือกสกิลใหม่ได้ก่อนยกถัดไป" : room.present[otherSeat()] ? "ทั้งสองฝ่ายกดพร้อมแล้วเกมจะเริ่ม" : "ส่งรหัสห้องให้เพื่อน หรือรอคนจับคู่เข้ามา";
+    const waiting = !room.present[otherSeat()];
+    if (room.mm && waiting && room.phase === "lobby") return renderSearching();
+    const title = result ? resultTitle() : between ? `ยกที่ ${room.round + 1}` : room.mm ? "พบคู่ต่อสู้!" : `ห้อง ${room.code}`;
+    const note = result ? "" : between ? "เลือกสกิลใหม่ได้ก่อนยกถัดไป" : waiting ? "ส่งรหัสห้องให้เพื่อนเพื่อเข้ามาเล่น" : "เลือกตัวละครและสกิล แล้วกดพร้อม";
     const p = screen(title, note);
-    // the two seats
     const seats = el("div", "on-seats");
     for (const seat of ["host", "guest"]) {
       const s = el("div", "on-seat" + (seat === mySeat() ? " me" : ""));
@@ -252,26 +309,30 @@
       const info = el("div");
       info.append(el("b", null, here ? room.names[seat] || "…" : "ว่าง"));
       info.append(el("span", null, here && pick ? window.CHARACTERS[pick.kit].name : seat === "guest" ? "รอผู้เล่น" : ""));
-      s.append(info);
-      const sc = el("em", null, String(room.score[seat === "host" ? "p1" : "p2"]));
-      s.append(sc);
+      s.append(info, el("em", null, String(room.score[seat === "host" ? "p1" : "p2"])));
       if (here && pick && pick.ready && !result) s.append(el("i", "ready", "พร้อม"));
       seats.append(s);
     }
     p.append(seats);
-    p.append(el("p", "on-link", linkText()));
     if (result) {
       const rt = room.rated;
       const won = room.score[room.role === "host" ? "p1" : "p2"] >= WINS;
       p.append(el("p", "on-me", !rt || rt.status === "sending" || rt.status === "pending" ? "กำลังบันทึกผล…"
         : rt.status === "confirmed" ? `คะแนน ${won ? "+" : "−"}${rt.delta}` : rt.status === "disputed" ? "ผลไม่ตรงกัน เกมนี้ไม่นับคะแนน" : "บันทึกผลไม่สำเร็จ"));
-      p.append(footer([button("แข่งอีกครั้ง", "pick-done", rematch), button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); })]));
+      const again = room.mm ? button("หาคู่ใหม่", "pick-done", () => { leaveRoom(true); run(again, quickMatch); }) : button("แข่งอีกครั้ง", "pick-done", rematch);
+      p.append(footer([again, button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); })]));
       return;
     }
     const mine = room.picks[mySeat()];
-    // fighter: chosen in the room, locked once the set has started
-    if (!between) {
-      p.append(el("h3", "pick-group", "เลือกตัวละคร"));
+    const sk = G.skills(mine.kit);
+    const normals = mine.loadout.filter((id) => sk.normals.some((x) => x.id === id));
+    const ult = mine.loadout.find((id) => sk.ults.some((x) => x.id === id));
+    const names = between ? ["สกิล (2)", "ไม้ตาย (1)"] : ["ตัวละคร", "สกิล (2)", "ไม้ตาย (1)"];
+    const keys = between ? ["skills", "ult"] : ["fighter", "skills", "ult"];
+    if (!keys.includes(room.tab)) room.tab = keys[0];
+    const pane = tabs(p, names, keys.indexOf(room.tab), (i) => { room.tab = keys[i]; renderRoom(); });
+    const goTab = (t) => { room.tab = t; };
+    if (room.tab === "fighter") {
       const list = el("ul", "char-list on-chars");
       for (const c of G.roster()) {
         const li = el("li");
@@ -281,38 +342,37 @@
         b.addEventListener("click", () => {
           if (mine.ready) return;
           room.picks[mySeat()] = { kit: c.id, loadout: G.skills(c.id).loadout, ready: false };
+          goTab("skills");
           sendPick(); renderRoom();
         });
         li.append(b); list.append(li);
       }
-      p.append(list);
+      pane.append(list);
+    } else {
+      const card = (x, on, onClick) => {
+        const li = el("li");
+        const b = el("button", "pick" + (x.ult ? " ult" : "") + (on ? " on" : ""));
+        b.type = "button";
+        const img = el("img"); img.src = x.icon; img.alt = "";
+        b.append(img, el("span", "pn", x.name), el("span", "pd", x.desc), el("span", "pc", (x.ult ? "ULT · " : "") + "CD " + x.cd + "s"));
+        b.addEventListener("click", onClick);
+        li.append(b); return li;
+      };
+      const setLoadout = (n, u) => { room.picks[mySeat()] = { ...mine, loadout: [...n, u].filter(Boolean), ready: false }; sendPick(); renderRoom(); };
+      const ul = el("ul", "pick-list");
+      if (room.tab === "skills") {
+        for (const x of sk.normals) ul.append(card(x, normals.includes(x.id), () => {
+          if (mine.ready) return;
+          let n = normals.includes(x.id) ? normals.filter((y) => y !== x.id) : [...normals, x.id];
+          if (n.length > 2) n = n.slice(1);
+          if (n.length === 2 && !normals.includes(x.id)) goTab("ult");
+          setLoadout(n, ult);
+        }));
+      } else {
+        for (const x of sk.ults) ul.append(card(x, ult === x.id, () => { if (!mine.ready) setLoadout(normals, x.id); }));
+      }
+      pane.append(ul);
     }
-    // skills: 2 normal + 1 ultimate
-    const sk = G.skills(mine.kit);
-    const normals = mine.loadout.filter((id) => sk.normals.some((s) => s.id === id));
-    const ult = mine.loadout.find((id) => sk.ults.some((s) => s.id === id));
-    const card = (s, on, onClick) => {
-      const li = el("li");
-      const b = el("button", "pick" + (s.ult ? " ult" : "") + (on ? " on" : ""));
-      b.type = "button";
-      const img = el("img"); img.src = s.icon; img.alt = "";
-      b.append(img, el("span", "pn", s.name), el("span", "pd", s.desc), el("span", "pc", (s.ult ? "ULT · " : "") + "CD " + s.cd + "s"));
-      b.addEventListener("click", onClick);
-      li.append(b); return li;
-    };
-    const setLoadout = (n, u) => { room.picks[mySeat()] = { ...mine, loadout: [...n, u], ready: false }; sendPick(); renderRoom(); };
-    p.append(el("h3", "pick-group", "สกิลธรรมดา (เลือก 2)"));
-    const nl = el("ul", "pick-list normal");
-    for (const s of sk.normals) nl.append(card(s, normals.includes(s.id), () => {
-      if (mine.ready) return;
-      let n = normals.includes(s.id) ? normals.filter((x) => x !== s.id) : [...normals, s.id];
-      if (n.length > 2) n = n.slice(1);
-      setLoadout(n, ult);
-    }));
-    p.append(nl, el("h3", "pick-group ult", "ไม้ตาย (เลือก 1)"));
-    const ul = el("ul", "pick-list ult");
-    for (const s of sk.ults) ul.append(card(s, ult === s.id, () => { if (!mine.ready) setLoadout(normals, s.id); }));
-    p.append(ul);
     const ok = normals.length === 2 && !!ult;
     const ready = button(mine.ready ? "ยกเลิกพร้อม" : "พร้อม", "pick-done", () => {
       if (!ok) return;
@@ -321,7 +381,14 @@
       sendPick(); renderRoom(); maybeStart();
     });
     ready.disabled = !ok;
-    p.append(footer([button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); }), ready]));
+    const foot = footer([el("span", "on-link", linkText()), button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); }), ready]);
+    p.append(foot);
+  }
+  function renderSearching() {
+    const p = screen("กำลังหาคู่ต่อสู้…", "จะจับคู่กับผู้เล่นที่คะแนนใกล้เคียงที่สุด");
+    const box = el("div", "on-search");
+    box.append(el("b", null, "0:00"), el("span", null, myRating ? `คะแนนของคุณ ${myRating.rating}` : ""));
+    p.append(box, footer([button("ยกเลิก", "sel-back", () => { leaveRoom(true); lobby(); })]));
   }
   function resultTitle() {
     const won = room.score[room.role === "host" ? "p1" : "p2"] >= WINS;
@@ -539,6 +606,13 @@
 
   // ---------- leaving ----------
   function opponentLeft() {
+    if (room.mm && room.phase === "lobby") {
+      if (room.role === "guest") { leaveRoom(true); run(panel.querySelector("button") || el("button"), quickMatch); return; }
+      closeLink();
+      room.picks.guest = null;
+      renderRoom();
+      return;
+    }
     if (room.phase === "fight" || room.phase === "between") {
       room.score[room.role === "host" ? "p1" : "p2"] = WINS;   // a walk-over win
       room.phase = "result";
@@ -555,6 +629,7 @@
     const r = room;
     room = null;
     clearInterval(r.heartbeat);
+    clearInterval(r.searchTimer);
     clearTimeout(r.relayTimer);
     try { r.dc?.close(); r.pc?.close(); } catch (_) { /* ignore */ }
     if (r.channel) client().removeChannel(r.channel);
@@ -576,23 +651,24 @@
   async function leaderboard() {
     clearInterval(lobbyTimer);
     track("screen", { name: "leaderboard" });
-    const p = screen("อันดับผู้เล่น", "คะแนนแบบ Elo เริ่มที่ 1000 นับเฉพาะเกมออนไลน์ที่ทั้งสองฝั่งรายงานผลตรงกัน");
-    const list = el("ol", "on-board");
-    list.append(el("li", "on-empty", "กำลังโหลด…"));
-    p.append(list, footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
-    let rows = [];
-    try { rows = await rpc("mf_leaderboard", { p_limit: 100 }); } catch (_) { list.firstChild.textContent = "โหลดไม่สำเร็จ"; return; }
-    list.textContent = "";
-    if (!rows.length) { list.append(el("li", "on-empty", "ยังไม่มีใครติดอันดับ ชนะเกมออนไลน์เกมแรกเพื่อขึ้นอันดับ")); return; }
-    const head = el("li", "on-row head");
-    head.append(el("b", null, "#"), el("span", null, "ผู้เล่น"), el("em", null, "คะแนน"), el("i", null, "ชนะ-แพ้"), el("i", null, "ชนะ %"));
-    list.append(head);
-    for (const r of rows) {
+    const p = screen("อันดับผู้เล่น", "คะแนน Elo เริ่ม 1000 · นับเฉพาะเกมออนไลน์ที่ทั้งสองฝั่งรายงานผลตรงกัน");
+    const mine = el("p", "on-me", "");
+    const pane = el("div", "on-pane");
+    p.append(mine, pane, footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
+    const row = (r) => {
       const li = el("li", "on-row" + (r.id === player.id ? " me" : ""));
       li.append(el("b", null, String(r.rank)), el("span", null, r.name), el("em", null, String(r.rating)),
         el("i", null, `${r.wins}-${r.losses}`), el("i", null, Math.round((100 * r.wins) / Math.max(1, r.matches)) + "%"));
-      list.append(li);
-    }
+      return li;
+    };
+    const list = pager(pane, [], row, "กำลังโหลด…");
+    try {
+      const rows = await rpc("mf_leaderboard", { p_limit: 100 });
+      list.set(rows);
+      if (!rows.length) pane.querySelector(".on-empty").textContent = "ยังไม่มีใครติดอันดับ ชนะเกมออนไลน์เกมแรกเพื่อขึ้นอันดับ";
+      const me = rows.find((r) => r.id === player.id);
+      mine.textContent = me ? `คุณอยู่อันดับ ${me.rank} · ${me.rating} คะแนน` : player.name ? "คุณยังไม่ติดอันดับ" : "";
+    } catch (_) { pane.querySelector(".on-empty").textContent = "โหลดไม่สำเร็จ"; }
   }
 
   // ---------- game statistics (from the activity log) ----------
@@ -600,53 +676,51 @@
     const [kit, id] = key.split(":");
     return window.CHARACTERS[kit]?.skills[id] ? `${window.CHARACTERS[kit].skills[id].name} (${window.CHARACTERS[kit].name})` : key;
   };
-  async function stats(days) {
+  const statsView = { days: 7, tab: 0, data: null };
+  async function stats(days = statsView.days, reload = true) {
     clearInterval(lobbyTimer);
-    track("screen", { name: "stats" });
-    const p = screen("สถิติเกม", "นับจากการเล่นจริงทุกเครื่อง ทั้งกับ CPU และออนไลน์");
-    const tabs = el("div", "on-tabs");
+    if (reload) track("screen", { name: "stats" });
+    statsView.days = days;
+    const p = screen("สถิติเกม", "จากการเล่นจริงทุกเครื่อง ทั้งกับ CPU และออนไลน์");
+    const periods = el("div", "on-tabs small");
     for (const [d, label] of [[1, "วันนี้"], [7, "7 วัน"], [30, "30 วัน"], [null, "ทั้งหมด"]]) {
-      const b = button(label, "sel-back" + (d === days ? " on" : ""), () => stats(d));
-      tabs.append(b);
+      periods.append(button(label, "sel-back" + (d === days ? " on" : ""), () => stats(d)));
     }
-    const body = el("div", "on-stats", "กำลังโหลด…");
-    p.append(tabs, body, footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
-    let st;
-    try { st = await rpc("mf_stats", { p_days: days }); } catch (_) { body.textContent = "โหลดไม่สำเร็จ"; return; }
-    body.textContent = "";
-    const tiles = el("div", "on-tiles");
-    const tile = (n, label) => { const t = el("div", "on-tile"); t.append(el("b", null, String(n ?? 0)), el("span", null, label)); tiles.append(t); };
-    tile(st.players, "ผู้เล่น (เครื่อง)");
-    tile(st.matches, "แมตช์ทั้งหมด");
-    tile(st.matches_online, "แมตช์ออนไลน์");
-    tile(st.matches_cpu, "แมตช์กับ CPU");
-    tile(st.rounds, "ยกที่สู้");
-    tile(st.avg_round_sec ? st.avg_round_sec + " วิ" : "-", "เฉลี่ยต่อยก");
-    body.append(tiles);
-    body.append(el("h3", "pick-group", "ตัวละครที่ถูกเลือก"));
-    const chars = el("ol", "on-board");
-    for (const c of st.characters || []) {
-      const li = el("li", "on-row char-row");
-      li.append(G.portrait(c.kit, 32), el("span", null, window.CHARACTERS[c.kit]?.name || c.kit), el("em", null, c.picks + " ครั้ง"), el("i", null, "ชนะ " + c.win_rate + "%"));
-      chars.append(li);
+    p.append(periods);
+    const pane = tabs(p, ["ภาพรวม", "ตัวละคร", "สกิล", "ผลล่าสุด"], statsView.tab, (i) => { statsView.tab = i; stats(days, false); });
+    p.append(footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
+    if (reload || !statsView.data) {
+      pane.append(el("p", "on-empty", "กำลังโหลด…"));
+      try { statsView.data = await rpc("mf_stats", { p_days: days }); } catch (_) { pane.textContent = "โหลดไม่สำเร็จ"; return; }
+      pane.textContent = "";
     }
-    if (!(st.characters || []).length) chars.append(el("li", "on-empty", "ยังไม่มีข้อมูล"));
-    body.append(chars);
-    body.append(el("h3", "pick-group", "สกิลที่ใช้บ่อย"));
-    const sk = el("ol", "on-board");
-    for (const s of st.skills || []) { const li = el("li", "on-row wide"); li.append(el("span", null, skillName(s.skill)), el("em", null, s.uses + " ครั้ง")); sk.append(li); }
-    if (!(st.skills || []).length) sk.append(el("li", "on-empty", "ยังไม่มีข้อมูล"));
-    body.append(sk);
-    body.append(el("h3", "pick-group", "ผลแข่งออนไลน์ล่าสุด"));
-    const rec = el("ol", "on-board");
-    for (const m of st.recent || []) {
-      const li = el("li", "on-row wide");
-      li.append(el("span", null, `${m.host} (${window.CHARACTERS[m.host_kit]?.name || "?"})  ${m.score_host} - ${m.score_guest}  ${m.guest} (${window.CHARACTERS[m.guest_kit]?.name || "?"})`),
-        el("em", null, "ชนะ: " + m.winner), el("i", null, "±" + m.rating_delta));
-      rec.append(li);
+    const st = statsView.data;
+    if (statsView.tab === 0) {
+      const tiles = el("div", "on-tiles");
+      const tile = (n, label) => { const t = el("div", "on-tile"); t.append(el("b", null, String(n ?? 0)), el("span", null, label)); tiles.append(t); };
+      tile(st.players, "ผู้เล่น (เครื่อง)");
+      tile(st.matches, "แมตช์ทั้งหมด");
+      tile(st.matches_online, "แมตช์ออนไลน์");
+      tile(st.matches_cpu, "แมตช์กับ CPU");
+      tile(st.rounds, "ยกที่สู้");
+      tile(st.avg_round_sec ? st.avg_round_sec + " วิ" : "-", "เฉลี่ยต่อยก");
+      pane.append(tiles);
+    } else if (statsView.tab === 1) {
+      pager(pane, st.characters || [], (c) => {
+        const li = el("li", "on-row char-row");
+        li.append(G.portrait(c.kit, 32), el("span", null, window.CHARACTERS[c.kit]?.name || c.kit), el("em", null, c.picks + " ครั้ง"), el("i", null, "ชนะ " + c.win_rate + "%"));
+        return li;
+      }, "ยังไม่มีข้อมูล");
+    } else if (statsView.tab === 2) {
+      pager(pane, st.skills || [], (x) => { const li = el("li", "on-row wide"); li.append(el("span", null, skillName(x.skill)), el("em", null, x.uses + " ครั้ง")); return li; }, "ยังไม่มีข้อมูล");
+    } else {
+      pager(pane, st.recent || [], (m) => {
+        const li = el("li", "on-row wide");
+        li.append(el("span", null, `${m.host} (${window.CHARACTERS[m.host_kit]?.name || "?"})  ${m.score_host} - ${m.score_guest}  ${m.guest} (${window.CHARACTERS[m.guest_kit]?.name || "?"})`),
+          el("em", null, "ชนะ: " + m.winner), el("i", null, "±" + m.rating_delta));
+        return li;
+      }, "ยังไม่มีแมตช์ออนไลน์");
     }
-    if (!(st.recent || []).length) rec.append(el("li", "on-empty", "ยังไม่มีแมตช์ออนไลน์"));
-    body.append(rec);
   }
 
   // ---------- the bar over the fight: score, round, connection, leave ----------

@@ -327,7 +327,7 @@
   .on-seat em { margin-left: auto; font-style: normal; font-family: var(--font-pixel); font-size: 1.4rem; color: var(--gold); }
   .on-seat .ready { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 0.75rem; background: var(--gold); color: var(--night); padding: 1px 8px; border-radius: 999px; }
   .on-link { margin: 0; color: var(--muted); font-size: 0.85rem; }
-  .on-chars { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+  .on-panel .on-chars { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
   .on-chars .char { padding: 6px 4px; font-size: 0.8rem; gap: 4px; line-height: 1.25; height: 100%; align-content: start; }
   .on-chars .char canvas { width: 48px; height: 48px; border-color: var(--dusk); }
   .on-chars .char.on canvas { border-color: var(--gold); }
@@ -350,6 +350,22 @@
   .on-row.wide { grid-template-columns: 1fr auto auto; }
   .on-row.char-row canvas { width: 32px; height: 32px; image-rendering: pixelated; }
   .on-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .on-tabs.small .sel-back { padding: 2px 10px; font-size: 0.8rem; }
+  .on-pane { display: grid; gap: 8px; align-content: start; }
+  .on-pager { display: flex; gap: 10px; align-items: center; justify-content: center; }
+  .on-pager:empty { display: none; }
+  .on-pager .sel-back { padding: 2px 14px; }
+  .on-pager span { color: var(--muted); font-family: var(--font-pixel); font-size: 0.75rem; }
+  .pick-done.big { display: grid; gap: 2px; width: 100%; justify-self: stretch; font-size: 1.2rem; padding: 12px 18px; }
+  .pick-done.big small { font-size: 0.8rem; font-weight: 400; opacity: 0.8; }
+  .on-friends { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .on-friends > .sel-back { flex: 1 1 200px; }
+  .on-friends .on-form { flex: 1 1 240px; }
+  .on-search { display: grid; justify-items: center; gap: 4px; padding: 18px 0; }
+  .on-search b { font-family: var(--font-pixel); font-size: 2.2rem; color: var(--gold); animation: pulse 1.2s ease-in-out infinite; }
+  .on-search span { color: var(--muted); }
+  @keyframes pulse { 50% { opacity: 0.45; } }
+  .sel-foot .on-link { margin-right: auto; align-self: center; }
   .on-tabs .sel-back { padding: 4px 14px; }
   .on-tabs .sel-back.on { border-color: var(--gold); color: var(--gold); }
   .on-stats { display: grid; gap: 10px; }
@@ -365,9 +381,34 @@
   #netbar[hidden] { display: none; }
   #netbar span { overflow: hidden; text-overflow: ellipsis; }
   #netbar button { font: inherit; padding: 2px 12px; border-radius: 999px; border: 1px solid var(--dusk); background: transparent; color: var(--paper); cursor: pointer; }
-  @media (max-height: 480px) {
-    .on-panel { padding: 10px 12px; gap: 8px; }
+  @media (max-height: 520px) {
+    .on-panel { padding: 8px 12px; gap: 6px; }
+    .on-panel .pick-head h2 { font-size: 1.05rem; }
+    .on-panel .pick-note { font-size: 0.75rem; }
     .on-seats { gap: 6px; }
+    .on-seat { min-height: 0; padding: 4px 8px; }
+    .on-seat canvas { width: 32px; height: 32px; }
+    .on-seat em { font-size: 1.1rem; }
+    .on-panel .pick { grid-template-columns: 40px 1fr; padding: 4px 8px; }
+    .on-panel .pick img { width: 40px; height: 40px; }
+    .on-panel .pick .pd { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+    .on-panel .sel-foot .pick-done, .on-panel .sel-foot .sel-back { padding: 6px 14px; font-size: 0.9rem; }
+    .on-chars .char canvas { width: 40px; height: 40px; }
+    .on-tile { padding: 6px 8px; }
+    .on-row { padding: 3px 8px; }
+    .on-search { padding: 6px 0; }
+  }
+
+  /* skill picker: tabs only on short screens */
+  .pick-tabs { display: none; }
+  @media (max-height: 520px) {
+    .pick-tabs { display: flex; }
+    #picker[data-tab="normal"] .pick-tabs [data-tab="normal"], #picker[data-tab="ult"] .pick-tabs [data-tab="ult"] { border-color: var(--gold); color: var(--gold); }
+    #picker .pick-group { display: none; }
+    #picker[data-tab="normal"] .pick-list.ult, #picker[data-tab="ult"] .pick-list.normal { display: none; }
+    #picker .pick { grid-template-columns: 40px 1fr; padding: 4px 8px; }
+    #picker .pick img { width: 40px; height: 40px; }
+    #picker .pick .pd { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   }
 
   /* skill picker */
@@ -644,6 +685,10 @@
     <div class="pick-head">
       <h2 id="pick-title">เลือกสกิล</h2>
       <p class="pick-note" aria-live="polite"></p>
+    </div>
+    <div class="pick-tabs on-tabs">
+      <button class="sel-back" type="button" data-tab="normal">สกิล (2)</button>
+      <button class="sel-back" type="button" data-tab="ult">ไม้ตาย (1)</button>
     </div>
     <h3 class="pick-group">สกิลธรรมดา <span>เลือก 2 ท่า · ปุ่ม U I</span></h3>
     <ul class="pick-list normal"></ul>
