@@ -143,7 +143,7 @@
   }
 
   // ---------- lobby: play (matchmaking, friends) | watch ----------
-  let lobbyTimer = null, lobbyTab = 0;
+  let lobbyTimer = null, lobbyTab = 0;   // 0 play, 1 watch
   function lobby() {
     clearInterval(lobbyTimer);
     show("online");
@@ -154,7 +154,7 @@
     const showMine = () => { if (myRating) mine.textContent = myRating.matches ? `คะแนน ${myRating.rating} · อันดับ ${myRating.rank} · ชนะ ${myRating.wins} แพ้ ${myRating.losses}` : `คะแนนเริ่มต้น ${myRating.rating} · ชนะเกมออนไลน์เพื่อขึ้นอันดับ`; };
     if (myRating) showMine();
     else rpc("mf_hello", { p_player: player.id, p_name: player.name }).then((r) => { myRating = r; showMine(); }).catch(() => {});
-    const pane = tabs(p, ["เล่น", "บอท", "ดูการแข่ง"], lobbyTab, (i) => { lobbyTab = i; lobby(); });
+    const pane = tabs(p, ["เล่น", "ดูการแข่ง"], lobbyTab, (i) => { lobbyTab = i; lobby(); });
     if (lobbyTab === 0) {
       const quick = button("จับคู่ด่วน", "pick-done big", () => run(quick, quickMatch));
       quick.append(el("small", null, "หาคู่ต่อสู้ที่คะแนนใกล้เคียงให้อัตโนมัติ"));
@@ -176,17 +176,6 @@
       });
       friends.append(create, join);
       pane.append(quick, friends);
-    } else if (lobbyTab === 1) {
-      pane.append(el("p", "on-note", "บอทออนไลน์ตลอด · ซ้อมมือได้เลย ไม่นับคะแนน"));
-      const list = el("ul", "on-bots");
-      for (const bot of BOTS) {
-        const li = el("li");
-        const who = el("span");
-        who.append(el("b", null, bot.name), el("small", null, bot.style));
-        li.append(el("i", "on-dot"), who, button("ท้าดวล", "sel-back", () => { track("online", { action: "bot", room: bot.id }); startBot(bot); }));
-        list.append(li);
-      }
-      pane.append(list);
     } else {
       const list = pager(pane, [], roomRow, "ยังไม่มีการแข่งตอนนี้");
       const refresh = async () => {

@@ -1871,7 +1871,7 @@
         burstPath(0, 0, 10, 20, 9, -rot);
         ctx.fillStyle = "#ff7a1a";
         ctx.fill();
-        ctx.font = "26px 'Silkscreen', monospace";
+        ctx.font = "26px 'Silkscreen', 'Kanit', sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.lineWidth = 5;
@@ -1879,7 +1879,7 @@
         ctx.strokeText(pp.amount, 0, 1);
         ctx.fillStyle = "#ffe14a";
         ctx.fillText(pp.amount, 0, 1);
-        ctx.font = "9px 'Silkscreen', monospace";
+        ctx.font = "9px 'Silkscreen', 'Kanit', sans-serif";
         ctx.lineWidth = 3;
         ctx.strokeText("CRITICAL", 0, -24);
         ctx.fillStyle = "#fff4c2";
@@ -1893,7 +1893,7 @@
         ctx.globalAlpha = k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
         ctx.translate(x, y);
         ctx.scale(pop, pop);
-        ctx.font = (pp.skill ? "20px" : "16px") + " 'Silkscreen', monospace";
+        ctx.font = (pp.skill ? "20px" : "16px") + " 'Silkscreen', 'Kanit', sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.lineWidth = pp.skill ? 5 : 4;
@@ -2166,7 +2166,7 @@
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-        ctx.font = "10px 'Silkscreen', monospace";
+        ctx.font = "10px 'Silkscreen', 'Kanit', sans-serif";
         ctx.textAlign = "center";
         ctx.fillStyle = "#f3e9d2";
         ctx.fillText(Math.ceil(cd), x + size / 2, y0 + size / 2 + 4);
@@ -2174,7 +2174,7 @@
       ctx.strokeStyle = def.ult ? "#e4483f" : "#ffd23f";
       ctx.lineWidth = 2;
       ctx.strokeRect(x - 1, y0 - 1, size + 2, size + 2);
-      ctx.font = "8px 'Silkscreen', monospace";
+      ctx.font = "8px 'Silkscreen', 'Kanit', sans-serif";
       ctx.textAlign = "left";
       ctx.fillStyle = "#f3e9d2";
       ctx.fillText(keysLbl[i], x + 2, y0 + 9);
@@ -2205,12 +2205,12 @@
 
     const bw = Math.min(200, W / 2 - 90), bh = 10;
     const bx = right ? W - 58 - bw : 58, by = 25;
-    ctx.font = "10px 'Silkscreen', monospace";
+    ctx.font = "10px 'Silkscreen', 'Kanit', sans-serif";
     ctx.textBaseline = "alphabetic";
     ctx.textAlign = right ? "right" : "left";
     ctx.fillStyle = "#f3e9d2";
     ctx.fillText(f.kit.c.hudName, right ? bx + bw : bx, 20);
-    ctx.font = "8px 'Silkscreen', monospace";
+    ctx.font = "8px 'Silkscreen', 'Kanit', sans-serif";
     ctx.fillStyle = right ? "#c9b6ff" : "#ffd23f";
     ctx.fillText(f.tag ? (f === meF() && NET.mode !== "spectate" ? "YOU · " : "") + f.tag : f.ctrl === "human" ? "YOU" : "CPU", right ? bx + bw : bx, 47);
 
@@ -2236,13 +2236,13 @@
       ctx.translate(right ? W - 14 : 14, 82);
       ctx.scale(pulse, pulse);
       ctx.textAlign = right ? "right" : "left";
-      ctx.font = "22px 'Silkscreen', monospace";
+      ctx.font = "22px 'Silkscreen', 'Kanit', sans-serif";
       ctx.lineWidth = 4;
       ctx.strokeStyle = "#120d1c";
       ctx.strokeText(f.comboCount, 0, 0);
       ctx.fillStyle = right ? "#c9b6ff" : "#ffd23f";
       ctx.fillText(f.comboCount, 0, 0);
-      ctx.font = "9px 'Silkscreen', monospace";
+      ctx.font = "9px 'Silkscreen', 'Kanit', sans-serif";
       ctx.lineWidth = 3;
       ctx.strokeText("HITS", 0, 12);
       ctx.fillStyle = "#f3e9d2";
@@ -2255,14 +2255,14 @@
     ctx.save();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "32px 'Silkscreen', monospace";
+    ctx.font = "32px 'Silkscreen', 'Kanit', sans-serif";
     ctx.lineWidth = 6;
     ctx.strokeStyle = "#120d1c";
     ctx.strokeText(big, W / 2, H / 2 - 20);
     ctx.fillStyle = color;
     ctx.fillText(big, W / 2, H / 2 - 20);
     if (small) {
-      ctx.font = "10px 'Silkscreen', monospace";
+      ctx.font = "10px 'Silkscreen', 'Kanit', sans-serif";
       ctx.lineWidth = 3;
       ctx.strokeText(small, W / 2, H / 2 + 12);
       ctx.fillStyle = "#f3e9d2";
@@ -2395,7 +2395,7 @@
   const status = document.getElementById("status");
   loadImages()
     .then(() => finalizeAnims())
-    .then(() => document.fonts?.load("16px 'Silkscreen'").catch(() => {}))
+    .then(() => Promise.all(["16px 'Silkscreen'", "600 16px 'Kanit'"].map((f) => document.fonts?.load(f, "ก A"))).catch(() => {}))
     .then(() => {
       status.hidden = true;
       requestAnimationFrame((t) => { last = t; frame(t); });
