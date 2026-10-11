@@ -1501,8 +1501,8 @@
     for (let i = first; i <= first + Math.ceil(W / tw) + 1; i++) {
       const x = Math.round(i * tw - camX);
       ctx.save();
-      if (i % 2 !== 0) {
-        // mirror every other tile so the seams match
+      if (i % 2 !== 0 && !(M.bgNoMirror || []).includes(state.bg)) {
+        // mirror every other tile so the seams match (not on stages with writing, which would read backwards)
         ctx.translate(x + tw, 0);
         ctx.scale(-1, 1);
         ctx.drawImage(img, 0, 0, tw, H);

@@ -31,6 +31,8 @@ manifest = {
     "background": "assets/bg_village.png",
     # one of these is picked at random for every match
     "backgrounds": [f"assets/{n}" for n in sorted(os.listdir(A)) if n.startswith("bg_") and n.endswith(".png")],
+    # stages with readable signs: tile them straight, never mirrored
+    "bgNoMirror": ["assets/bg_alley.png"],
     "vfx": {**{k: f"assets/vfx_{k}.png" for k in VFX},
             # per-skill icons from tools/make_icons.py: ic_<character>_<skill>
             **{"ic_" + n[:-4]: f"assets/icons/{n}" for n in sorted(os.listdir(f"{A}/icons")) if n.endswith(".png")}},

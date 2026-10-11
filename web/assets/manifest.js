@@ -9,6 +9,9 @@ window.MANIFEST = {
   "assets/bg_ruins.png",
   "assets/bg_village.png"
  ],
+ "bgNoMirror": [
+  "assets/bg_alley.png"
+ ],
  "vfx": {
   "bird": "assets/vfx_bird.png",
   "naga": "assets/vfx_naga.png",
