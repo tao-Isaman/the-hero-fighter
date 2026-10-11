@@ -1,7 +1,6 @@
-// Music: two playlists from the manifest, each played in random order and looped.
-//   menu  (MANIFEST.music)      home, character / skill select, online screens before a match
-//   fight (MANIFEST.fightMusic) during fights (made by tools/compose_music.py)
-// Silent on the screens between online rounds. The ♪ button (shown on menus) turns all music
+// Music: the menu playlist (MANIFEST.music) in random order, looped, on the home, character /
+// skill select and online screens before a match. Fights have no music (MANIFEST.fightMusic,
+// if ever added, would play there). Silent on the screens between online rounds. The ♪ button (shown on menus) turns all music
 // off and the choice is remembered; the game's sound switch mutes it too.
 (() => {
   "use strict";
