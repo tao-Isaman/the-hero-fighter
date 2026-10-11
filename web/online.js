@@ -310,11 +310,14 @@
       ch.on("broadcast", { event: "in" }, ({ payload }) => { if (room.role === "host") onInput(payload); });
       ch.on("broadcast", { event: "relay" }, () => useRelay());
       ch.on("broadcast", { event: "hello" }, () => sendPick());
+      ch.on("broadcast", { event: "ping" }, ({ payload }) => onPing(payload, false));
+      ch.on("broadcast", { event: "pong" }, ({ payload }) => onPong(payload));
       ch.subscribe((status) => {
         if (status !== "SUBSCRIBED") return;
         ch.track({ role: room.role, name: player.name });
         if (room.role !== "spec") sendPick();
         ch.send({ type: "broadcast", event: "hello", payload: {} });
+        room.pingTimer = setInterval(sendPing, 2000);
         resolve();
       });
     });
@@ -653,8 +656,37 @@
       const m = JSON.parse(e.data);
       if (m.t === "s" && room.role === "guest") G.apply(m.s);
       else if (m.t === "i" && room.role === "host") onInput(m);
+      else if (m.t === "ping") onPing(m, true);
+      else if (m.t === "pong") onPong(m);
     };
   }
+  // latency: a ping every 2 s over the same path the game data takes (P2P channel, else the relay);
+  // shown as the round trip in ms. Players ping each other, spectators ping the host.
+  function sendPing() {
+    if (!room || !room.channel) return;
+    const other = room.role === "spec" ? "host" : otherSeat();
+    if (!room.present[other]) { room.rtt = null; return; }
+    const m = { t: "ping", id: player.id, to: other, ts: performance.now() };
+    if (room.role !== "spec" && room.link === "p2p" && room.dc && room.dc.readyState === "open") room.dc.send(JSON.stringify(m));
+    else send("ping", m);
+  }
+  function onPing(m, viaDC) {
+    if (!room || room.role === "spec" || m.to !== mySeat()) return;
+    const reply = { t: "pong", id: m.id, ts: m.ts };
+    if (viaDC && room.dc && room.dc.readyState === "open") room.dc.send(JSON.stringify(reply));
+    else send("pong", reply);
+  }
+  function onPong(m) {
+    if (!room || m.id !== player.id) return;
+    const rtt = performance.now() - m.ts;
+    if (rtt < 0 || rtt > 10000) return;
+    room.rtt = room.rtt == null ? rtt : room.rtt * 0.6 + rtt * 0.4;   // smoothed
+    updateNetbar();
+    const el = panel.querySelector(".on-link");
+    if (el && room.phase !== "fight") el.textContent = linkText();
+  }
+  const msText = () => (room && room.rtt != null ? `${Math.round(room.rtt)} ms` : "");
+
   function armRelayTimer() {
     clearTimeout(room.relayTimer);
     room.relayTimer = setTimeout(() => { if (room && room.link !== "p2p") { send("relay", {}); useRelay(); } }, 8000);
@@ -677,7 +709,8 @@
   function linkText() {
     if (room.bot) return "สถานะ: เล่นกับบอท (ไม่นับคะแนน)";
     if (!room.present[otherSeat()]) return "สถานะ: รอคู่ต่อสู้";
-    return room.link === "p2p" ? "สถานะ: เชื่อมต่อตรง (P2P)" : room.link === "relay" ? "สถานะ: เชื่อมต่อผ่านเซิร์ฟเวอร์ (หน่วงกว่าเล็กน้อย)" : "สถานะ: กำลังเชื่อมต่อ…";
+    const ms = msText() ? ` · ${msText()}` : "";
+    return room.link === "p2p" ? `สถานะ: เชื่อมต่อตรง (P2P)${ms}` : room.link === "relay" ? `สถานะ: ผ่านเซิร์ฟเวอร์${ms}` : "สถานะ: กำลังเชื่อมต่อ…";
   }
 
   // ---------- leaving ----------
@@ -706,6 +739,7 @@
     room = null;
     clearInterval(r.heartbeat);
     clearInterval(r.searchTimer);
+    clearInterval(r.pingTimer);
     clearTimeout(r.relayTimer);
     try { r.dc?.close(); r.pc?.close(); } catch (_) { /* ignore */ }
     if (r.channel) client().removeChannel(r.channel);
@@ -804,7 +838,8 @@
     if (!room || NET.mode === "offline" && room.role !== "spec") { netbar.hidden = true; return; }
     netbar.hidden = false;
     const n = room.names;
-    const tail = room.role === "spec" ? `ผู้ชม ${room.specs}` : room.bot ? "BOT" : room.link === "p2p" ? "P2P" : room.link === "relay" ? "RELAY" : "…";
+    const link = room.role === "spec" ? `ผู้ชม ${room.specs}` : room.bot ? "BOT" : room.link === "p2p" ? "P2P" : room.link === "relay" ? "RELAY" : "…";
+    const tail = msText() ? `${link} ${msText()}` : link;
     netbarText(`${n.host || "?"}  ${room.score.p1} - ${room.score.p2}  ${n.guest || "?"}  ·  ยก ${room.round + 1}  ·  ${tail}`);
   }
   function netbarText(t) { netbar.hidden = false; $("#netbar span").textContent = t; placeNetbar(); }
