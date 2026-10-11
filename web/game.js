@@ -571,6 +571,7 @@
     if (def.charge) sfx.charge(def.charge);
     else if (!def.counter) sfx.swing(weaponOf(f, def), 1);
     if (def.ult) f.invulnT = Math.max(f.invulnT, 0.5);
+    if (def.invuln) f.invulnT = Math.max(f.invulnT, def.invuln);   // iron body: nothing gets through, but rooted
     if (def.leap) {
       const L = typeof def.leap === "object" ? def.leap : {};
       f.vy = L.vy ?? -720;
@@ -724,17 +725,18 @@
         sk.dashSide = Math.sign(o.x - f.x);
       }
       const was = sk.dashing;
-      sk.dashing = sk.t - t0 < D.time;
+      sk.dashing = !sk.dashStop && sk.t - t0 < D.time;
       if (was && !sk.dashing && D.hopOff) { f.vy = -D.hopOff; f.onGround = false; }   // jump off the ride
       if (sk.dashing) {
         f.x = clamp(f.x + sk.dashDir * (D.dist / D.time) * dt, 40, M.worldWidth - 40);
         sk.passThrough = true;
         const side = Math.sign(o.x - f.x);
-        const crossed = side !== sk.dashSide || Math.abs(o.x - f.x) < 28;
+        const crossed = side !== sk.dashSide || Math.abs(o.x - f.x) < (D.stopAt || 28);
         if (!sk.dashHit && crossed && Math.abs(o.y - f.y) < 120 && o.hp > 0) {
           sk.dashHit = true;
           spawnFx(f, D.hit.fx);
           hitFighter(o, { crit: 0.25, kb: 60, ...D.hit, skill: true, dir: sk.dashDir }, f);
+          if (D.stopAt) sk.dashStop = true;   // a lunge punch ends on the hit
         }
       }
     }
@@ -772,6 +774,21 @@
             sfx.rocket?.();
           },
         });
+      }
+    }
+    // reflect: during the window, swat the opponent's projectiles back at them (stronger)
+    if (def.reflect && kk >= (def.reflect.at || 0) && kk <= (def.reflect.until ?? 1)) {
+      const R = def.reflect;
+      for (const s of state.shots) {
+        if (s.owner === f || s.done) continue;
+        if (Math.abs(s.x - f.x) > R.range || Math.abs(s.y - (f.y - 62)) > 110) continue;
+        s.owner = f; s.dir = f.facing; s.hit = false; s.dist = 0; s.out = true;
+        s.dmgMul = (s.dmgMul || 1) * (R.mult || 2);
+        if (s.sin) { s.sin = -Math.abs(s.sin) * 0.3; s.cos = 1; s.angle = 0; }   // send it back level
+        spawnFx(f, R.fx);
+        addSparks(s.x, s.y, 14, R.color || "#ffb02e");
+        sfx.clang();
+        state.hitStop = Math.max(state.hitStop, 0.08);
       }
     }
     // pull: drag the opponent in while the field is up (no damage)
@@ -843,7 +860,7 @@
     if (def.aura && !sk.aura) {
       // effect that surrounds the fighter for the whole cast
       sk.aura = true;
-      spawnFx(f, [{ ...def.aura, life: def.dur + 0.15, follow: true, back: true }]);
+      spawnFx(f, [{ ...def.aura, life: def.dur + 0.15, follow: true, back: !def.aura.front }]);   // front: wraps over the body
     }
 
     const holding = def.shot && !def.shot.straight && state.shots.some((s) => s.owner === f);   // wait to catch the thrown weapon
@@ -926,6 +943,9 @@
   }
 
   // thrown weapons fly out inside their effect, then curve back to the thrower's hand
+  // a reflected shot hits harder
+  function shotDmg(s) { return s.dmgMul ? { dmg: s.def.dmg.map((v) => Math.round(v * s.dmgMul)) } : {}; }
+
   function updateShots(dt) {
     for (const s of state.shots) {
       const f = s.owner;
@@ -945,7 +965,7 @@
           const o = f.opp;
           if (!s.hit && o.hp > 0 && Math.abs(o.x - s.x) < (s.def.splash || 50) && o.y > GROUND_Y - 120) {
             s.hit = true;
-            hitFighter(o, { power: 1, crit: 0.2, kb: 40, ...s.def, skill: true, dir: s.dir }, f);
+            hitFighter(o, { power: 1, crit: 0.2, kb: 40, ...s.def, ...shotDmg(s), skill: true, dir: s.dir }, f);
           }
           continue;
         }
@@ -965,7 +985,7 @@
       const o = f.opp;
       if (!s.hit && o.hp > 0 && Math.abs(o.x - s.x) < 42 && Math.abs(o.y - 62 - s.y) < 90) {
         s.hit = true;
-        hitFighter(o, { power: 1, crit: 0.25, kb: 40, ...s.def, skill: true, dir: s.dir }, f);
+        hitFighter(o, { power: 1, crit: 0.25, kb: 40, ...s.def, ...shotDmg(s), skill: true, dir: s.dir }, f);
       }
     }
     state.shots = state.shots.filter((s) => !s.done);
@@ -1588,7 +1608,7 @@
     } else if (f.launched) {
       rot = -f.facing * clamp(-f.vy / 900, -0.6, 0.6);
     }
-    const blink = f.invulnT > 0 && f.downT <= 0 && Math.floor(f.invulnT * 20) % 2 === 0 ? 0.55 : 1;
+    const blink = f.invulnT > 0 && f.downT <= 0 && !(f.skill && f.skill.def.invuln) && Math.floor(f.invulnT * 20) % 2 === 0 ? 0.55 : 1;
     drawFrame(a, frame, f.x - camX + ox, f.y - lift, f.facing, f.kit.scale, blink, f.flash, rot);
     if (ride && f.skill.dashing && ride.rope) {
       // the reins: a taut rope from the fists to the rocket's nose

@@ -29,9 +29,12 @@ window.CHARACTERS.suahan = {
     air3: { image: "sprites/air3.png", duration: 0.26, playFor: 0.7, hitAt: 0.5, bottoms: "auto" },
     air4: { image: "sprites/air4.png", duration: 0.42, playFor: 0.6, hitAt: 0.45, bottoms: "auto" },
 
-    sk_strike: { image: "sprites/sk_strike.png" },
-    sk_burst: { image: "sprites/sk_burst.png" },
-    sk_spin: { image: "sprites/sk_spin.png" },
+    sk_twin: { image: "sprites/sk_twin.png" },
+    sk_iron: { image: "sprites/sk_iron.png" },
+    sk_rush: { image: "sprites/sk_rush.png" },
+    sk_elbow: { image: "sprites/sk_elbow.png" },
+    sk_roar: { image: "sprites/sk_roar.png" },
+    sk_bow: { image: "sprites/sk_bow.png" },
   },
 
   // brass knuckles: every row is a punch (fist sounds and speed lines)
@@ -49,32 +52,51 @@ window.CHARACTERS.suahan = {
     { anim: "air4", dmg: [20, 28], crit: 0.3, kb: 130, reach: 116, dir: 1, power: 2, plunge: true, punch: true },
   ],
 
-  // Skills: one example of each common shape. Effect keys must exist in assets/vfx_<key>.png
-  // (shared effects: bird, naga, chakra, tiger, rocks, yama, storm).
   skills: {
-    strike: {
-      name: "ท่าตัวอย่าง 1", desc: "ตีไกล 1 ครั้ง", cd: 6, dur: 0.5,
-      frames: [0, 0.2, 0.45], icon: "tiger", assist: 100,
-      hits: [{ at: 0.45, dmg: [20, 28], reach: 150, power: 1,
-        fx: [{ key: "tiger", dx: 30, vx: 380, life: 0.45, s0: 0.7, s1: 1.1 }] }],
+    twin: {
+      name: "หมัดพยัคฆ์คู่", desc: "หมัดซ้าย-ขวา 2 ครั้ง ยันต์หน้าเสือปรากฏทุกหมัด", cd: 5, dur: 0.5,
+      frames: [0, 0.3, 0.6], icon: "yantface", assist: 80,
+      hits: [0.3, 0.62].map((at, i) => ({ at, dmg: [13, 17], reach: 116, power: i, kb: i ? 80 : 20, punch: true,
+        sparkColor: "#ffb02e", sparkColor2: "#ffe0b0",
+        fx: [{ key: "yantface", dx: 84, dy: -8, life: 0.35, s0: 0.5, s1: 0.95, opacity: 0.9 }] })),
     },
-    burst: {
-      name: "ท่าตัวอย่าง 2", desc: "กระแทกพื้น ศัตรูมึนงง", cd: 7, dur: 0.48,
-      frames: [0, 0.2, 0.38], icon: "rocks", assist: 70,
-      hits: [{ at: 0.4, dmg: [18, 24], reach: 105, power: 1, stun: 2,
-        fx: [{ key: "rocks", dx: 46, at: "ground", life: 0.55, s0: 0.5, s1: 1.15, anchor: "bottom", shockwave: true }] }],
+    iron: {
+      name: "วิชาสมิงเหล็ก", desc: "ยันต์ดำคลุมกาย 1.5 วินาที ไม่โดนความเสียหายทุกชนิด แต่ขยับไม่ได้", cd: 10, dur: 1.5,
+      frames: [0, 0.1, 0.2], icon: "yantblack", invuln: 1.5,
+      aura: { key: "yantblack", front: true, dy: -6, s0: 1.6, s1: 1.7, opacity: 0.75, glow: false },
     },
-    spin: {
-      name: "ไม้ตายตัวอย่าง", desc: "หมุนตัวฟัน 3 ครั้ง", cd: 15, ult: true, dur: 0.95,
-      frames: [0, 0.33, 0.66], loopFrames: true, icon: "storm", drift: 120, assist: 90,
-      aura: { key: "storm", at: "ground", s0: 0.8, s1: 1.25, anchor: "bottom" },
+    rush: {
+      name: "วิชาร่นระยะทาง", desc: "พุ่งเข้าหาศัตรูแล้วต่อย 1 ครั้ง เงาตามตัว", cd: 6, dur: 0.55,
+      frames: [0, 0.12, 0.45], icon: "yanttiger",
+      dash: { dist: 380, time: 0.32, forward: true, shadow: true, stopAt: 74,
+        hit: { dmg: [20, 26], power: 1, kb: 100, punch: true, sparkColor: "#ffb02e",
+          fx: [{ sparks: [[12, "#ffb02e"], [6, "#ffe0b0"]] }] } },
+    },
+    elbow: {
+      name: "รุกรับจับเสือ", desc: "ฟันศอก 1 ครั้ง ปัดกระสุนของศัตรูกลับไป แรงขึ้น 2 เท่า ยันต์เกราะเพชร", cd: 7, dur: 0.6,
+      frames: [0, 0.25, 0.45], icon: "krawpetch", assist: 70,
+      reflect: { at: 0, until: 0.75, range: 150, mult: 2, color: "#ffb02e",
+        fx: [{ key: "krawpetch", dx: 40, life: 0.45, s0: 0.7, s1: 1.25, opacity: 0.9 }] },
+      hits: [{ at: 0.45, dmg: [17, 22], reach: 106, power: 1, kb: 70, sparkColor: "#ffb02e",
+        fx: [{ key: "krawpetch", dx: 56, dy: -6, life: 0.4, s0: 0.6, s1: 1.05, opacity: 0.9 }] }],
+    },
+    roar: {
+      name: "พยัคฆ์คำราม นะจังงัง", desc: "ไม้ตาย คำรามโจมตีศัตรูรอบตัว 1 ครั้ง ศัตรูมึนงง", cd: 18, ult: true, dur: 0.9,
+      frames: [0, 0.25, 0.5], icon: "yantroar", sound: "roar",
+      hits: [{ at: 0.5, dmg: [30, 40], reach: 230, both: true, power: 2, kb: 50, stun: 1.8, sparkColor: "#ffb02e", sparkColor2: "#ffe0b0",
+        fx: [{ key: "yantroar", dx: 34, dy: -24, life: 0.85, s0: 1, s1: 2.7, opacity: 0.85 }, { shockwave: true }] }],
+    },
+    bow: {
+      name: "หมัดธนูมือ", desc: "ไม้ตาย ชาร์จ 1 วิ แล้วต่อยรุนแรง 2 ครั้ง ระยะไกล ยันต์เสือกระโจน", cd: 18, ult: true,
+      charge: 1.0, chargeColor: "#ff9a3c", dur: 0.6, frames: [0, 0.25, 0.6], icon: "yanttiger",
       hits: [
-        { at: 0.25, dmg: [16, 22], reach: 140, both: true, power: 1, fx: [{ sparks: [[14, "#e8fbff"]] }] },
-        { at: 0.52, dmg: [16, 22], reach: 140, both: true, power: 1, fx: [{ sparks: [[14, "#e8fbff"]] }] },
-        { at: 0.8, dmg: [22, 30], reach: 145, both: true, power: 2, fx: [{ sparks: [[14, "#e8fbff"]] }] },
+        { at: 0.28, dmg: [26, 32], reach: 240, power: 1, kb: 40, punch: true, sparkColor: "#ffb02e",
+          fx: [{ key: "yanttiger", dx: 40, dy: -10, vx: 520, life: 0.5, s0: 1.4, s1: 1.9, opacity: 0.85 }] },
+        { at: 0.62, dmg: [34, 44], reach: 250, power: 2, kb: 190, knockdown: 1.3, punch: true, sparkColor: "#ffb02e", sparkColor2: "#ff5a1f",
+          fx: [{ key: "yanttiger", dx: 50, dy: -14, vx: 620, life: 0.55, s0: 1.7, s1: 2.3, opacity: 0.9 }, { shockwave: true }] },
       ],
     },
   },
-  skillOrder: ["strike", "burst", "spin"],
-  defaultLoadout: ["strike", "burst", "spin"],     // exactly 3
+  skillOrder: ["twin", "iron", "rush", "elbow", "roar", "bow"],
+  defaultLoadout: ["twin", "rush", "bow"],
 };

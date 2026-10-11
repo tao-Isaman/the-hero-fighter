@@ -63,6 +63,10 @@ window.MANIFEST = {
   "soulicon": "assets/vfx_soulicon.png",
   "bloodicon": "assets/vfx_bloodicon.png",
   "yanttiger": "assets/vfx_yanttiger.png",
+  "yantface": "assets/vfx_yantface.png",
+  "yantroar": "assets/vfx_yantroar.png",
+  "krawpetch": "assets/vfx_krawpetch.png",
+  "yantblack": "assets/vfx_yantblack.png",
   "ic_baksiang_bigride": "assets/icons/baksiang_bigride.png",
   "ic_baksiang_doubleknee": "assets/icons/baksiang_doubleknee.png",
   "ic_baksiang_monkey": "assets/icons/baksiang_monkey.png",
@@ -105,7 +109,13 @@ window.MANIFEST = {
   "ic_nangsuea_jungle": "assets/icons/nangsuea_jungle.png",
   "ic_nangsuea_roar": "assets/icons/nangsuea_roar.png",
   "ic_nangsuea_skyrise": "assets/icons/nangsuea_skyrise.png",
-  "ic_nangsuea_twinclaw": "assets/icons/nangsuea_twinclaw.png"
+  "ic_nangsuea_twinclaw": "assets/icons/nangsuea_twinclaw.png",
+  "ic_suahan_bow": "assets/icons/suahan_bow.png",
+  "ic_suahan_elbow": "assets/icons/suahan_elbow.png",
+  "ic_suahan_iron": "assets/icons/suahan_iron.png",
+  "ic_suahan_roar": "assets/icons/suahan_roar.png",
+  "ic_suahan_rush": "assets/icons/suahan_rush.png",
+  "ic_suahan_twin": "assets/icons/suahan_twin.png"
  },
  "vfxAnim": {
   "bird": {
