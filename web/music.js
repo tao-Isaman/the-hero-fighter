@@ -6,7 +6,7 @@
 (() => {
   "use strict";
   const M = window.MANIFEST || {};
-  const btn = document.getElementById("music-btn");
+  const btn = document.getElementById("music-btn"), credit = document.getElementById("music-credit");
   const lists = { menu: M.music || [], fight: M.fightMusic || [] };
   if (!btn || (!lists.menu.length && !lists.fight.length)) return;
   const VOL = { menu: 0.45, fight: 0.3 }, FADE = 0.8;
@@ -66,6 +66,7 @@
   function sync() {
     const ctx = context();
     btn.hidden = !(ctx === "menu" && unlocked);
+    if (credit) credit.hidden = !(ctx === "menu" && lists.menu.length && document.getElementById("home") && !document.getElementById("home").hidden);
     btn.classList.toggle("off", !on);
     const allowed = on && unlocked && !document.hidden && !(window.SFX && window.SFX.muted);
     for (const p of Object.values(players)) p.set(allowed && ctx === p.kind && lists[p.kind].length > 0);

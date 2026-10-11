@@ -88,7 +88,6 @@
   $("#home-cpu").addEventListener("click", () => { track("screen", { name: "cpu" }); show("offline"); charsel.hidden = false; charsel.querySelector(".sel-start")?.focus(); });
   $("#home-online").addEventListener("click", () => { show("online"); player.name ? lobby() : login(); });
   $("#home-rank").addEventListener("click", () => { show("online"); leaderboard(); });
-  $("#home-stats").addEventListener("click", () => { show("online"); stats(7); });
   for (const b of document.querySelectorAll("[data-home]")) b.addEventListener("click", () => { leaveRoom(); show("home"); });
 
   function login() {
@@ -819,7 +818,10 @@
     window.SFX?.ui?.(kind);
   }, true);
 
-  // start on the home screen
+  // start on the home screen; game stats are for admins only, opened by URL: /#stats
+  const openStats = () => { if (location.hash === "#stats") { show("online"); stats(7); } };
   show("home");
   track("screen", { name: "home" });
+  openStats();
+  addEventListener("hashchange", openStats);
 })();

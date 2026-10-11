@@ -346,6 +346,9 @@
   #online .pick-head { padding-right: 34px; }   /* room for the ♪ button */
   #music-btn.off { color: var(--muted); text-decoration: line-through; opacity: 0.7; }
   #music-btn[hidden] { display: none; }
+  #music-credit { position: fixed; right: max(10px, env(safe-area-inset-right)); bottom: max(6px, env(safe-area-inset-bottom)); z-index: 8;
+    margin: 0; font-size: 0.68rem; color: var(--muted); opacity: 0.8; pointer-events: none; }
+  #music-credit[hidden] { display: none; }
   .home-panel.helping > small, .home-panel.helping > p:not(.install-help) { display: none; }   /* room for the steps on phones */
   .on-me { margin: 0; color: var(--gold); font-size: 0.95rem; }
   .on-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -736,6 +739,7 @@
 
 <!-- first screen: vs CPU or online -->
 <button id="music-btn" type="button" aria-label="เปิด/ปิดเพลง" hidden>♪</button>
+<p id="music-credit" title="บริษัท กรุงเทพโทรทัศน์และวิทยุ จำกัด" hidden>เพลงประกอบ © ช่อง 7</p>
 
 <div id="home">
   <div class="home-panel">
@@ -745,7 +749,6 @@
     <button id="home-online" class="pick-done alt" type="button">เล่นออนไลน์</button>
     <div class="home-row">
       <button id="home-rank" class="sel-back" type="button">อันดับผู้เล่น</button>
-      <button id="home-stats" class="sel-back" type="button">สถิติเกม</button>
       <button id="home-install" class="sel-back install" type="button" hidden>ติดตั้งเกม</button>
     </div>
     <p id="install-help" class="install-help" hidden></p>
