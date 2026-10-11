@@ -88,6 +88,7 @@
   $("#home-cpu").addEventListener("click", () => { track("screen", { name: "cpu" }); show("offline"); charsel.hidden = false; charsel.querySelector(".sel-start")?.focus(); });
   $("#home-online").addEventListener("click", () => { show("online"); player.name ? lobby() : login(); });
   $("#home-rank").addEventListener("click", () => { show("online"); leaderboard(); });
+  addEventListener("mfighter:home", () => { if (!room) { show("home"); track("screen", { name: "home" }); } });
   for (const b of document.querySelectorAll("[data-home]")) b.addEventListener("click", () => { leaveRoom(); show("home"); });
 
   function login() {

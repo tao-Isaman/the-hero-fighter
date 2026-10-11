@@ -1517,7 +1517,8 @@
       if (NET.mode === "offline") track("match_end", { mode: "cpu", winner: sideOf(state.winner), score: { p1: state.winner === state.p1 ? 1 : 0, p2: state.winner === state.p2 ? 1 : 0 }, p1_kit: state.p1.kit.id, p2_kit: state.p2.kit.id });
     }
     if (state.over && state.overT > 3.2) {
-      if (NET.mode === "offline") { matchLive = false; openMenu(); return; }
+      // a CPU match is over: back to the home screen (online.js shows it)
+      if (NET.mode === "offline") { matchLive = false; openMenu(); dispatchEvent(new Event("mfighter:home")); return; }
       if (!state.reported) { state.reported = true; NET.onRoundOver?.(state.winner === state.p1 ? "p1" : "p2"); }
     }
 
