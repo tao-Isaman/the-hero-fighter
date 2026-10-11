@@ -1,19 +1,19 @@
-// คมแฝก online: guest login, quick match, private rooms, spectating, best-of-3 sets.
+// mFighter online: guest login, quick match, private rooms, spectating, best-of-3 sets.
 //
-// Supabase (promptGov project) holds the rooms (komfaek schema, reached only through kf_* functions)
+// Supabase (promptGov project) holds the rooms (mfighter schema, reached only through mf_* functions)
 // and carries the realtime room channel: presence, picks, round control and WebRTC signalling.
 // The fight itself runs on the host's screen; the guest sends inputs and draws the host's snapshots
 // over a direct WebRTC data channel. If the direct link can't be made, both fall back to relaying
 // through the Supabase channel. Spectators get snapshots through the channel at a lower rate.
 (() => {
   "use strict";
-  const SUPABASE_URL = (window.KF_TEST && window.KF_TEST.url) || "https://gmvykzuppjqwoypzmpvy.supabase.co";   // KF_TEST: automated tests only
-  const SUPABASE_KEY = "sb_publishable_-AyofFFv1mnhhHF27E40rA_EtW8iT_P";   // publishable (client) key
+  const SUPABASE_URL = window.MF.config.url;   // see track.js
+  const SUPABASE_KEY = window.MF.config.key;
   const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }];
   const SNAP_P2P = 1 / 30, SNAP_RELAY = 1 / 15, SNAP_SPEC = 1 / 10;   // seconds between snapshots
   const WINS = 2;                                                       // best of 3
 
-  const G = window.KomfaekNet;
+  const G = window.MFighterNet;
   const NET = G.NET;
   const $ = (sel, root = document) => root.querySelector(sel);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -33,18 +33,11 @@
     return data;
   };
 
-  // ---------- guest identity (kept on this device) ----------
-  function me() {
-    let p = null;
-    try { p = JSON.parse(localStorage.getItem("komfaek.player") || "null"); } catch (_) { /* storage off */ }
-    if (!p || !p.id) {
-      const a = new Uint8Array(12); crypto.getRandomValues(a);
-      p = { id: "g" + [...a].map((b) => b.toString(16).padStart(2, "0")).join(""), name: "" };
-    }
-    return p;
-  }
-  function saveMe(p) { try { localStorage.setItem("komfaek.player", JSON.stringify(p)); } catch (_) { /* ignore */ } }
-  let player = me();
+  // ---------- guest identity (kept on this device, see track.js) ----------
+  const saveMe = (p) => window.MF.savePlayer(p);
+  const track = (type, data) => window.MF.track(type, data);
+  let player = window.MF.player();
+  let myRating = null;                 // { rating, rank, matches, wins, losses } from mf_hello
 
   // ---------- screens ----------
   function show(which) {
@@ -69,11 +62,14 @@
   function errorLine(msg) { const p = el("p", "on-err", msg); panel.append(p); return p; }
 
   // home: the first thing every visit shows
-  $("#home-cpu").addEventListener("click", () => { show("offline"); charsel.hidden = false; charsel.querySelector(".sel-start")?.focus(); });
+  $("#home-cpu").addEventListener("click", () => { track("screen", { name: "cpu" }); show("offline"); charsel.hidden = false; charsel.querySelector(".sel-start")?.focus(); });
   $("#home-online").addEventListener("click", () => { show("online"); player.name ? lobby() : login(); });
+  $("#home-rank").addEventListener("click", () => { show("online"); leaderboard(); });
+  $("#home-stats").addEventListener("click", () => { show("online"); stats(7); });
   for (const b of document.querySelectorAll("[data-home]")) b.addEventListener("click", () => { leaveRoom(); show("home"); });
 
   function login() {
+    track("screen", { name: "login" });
     const p = screen("เล่นออนไลน์", "เข้าเล่นแบบ Guest ไม่ต้องสมัคร ชื่อนี้จะแสดงให้คู่ต่อสู้เห็น");
     const form = el("form", "on-form");
     const input = el("input", "on-input");
@@ -84,7 +80,7 @@
     form.addEventListener("submit", () => {
       const name = input.value.trim().slice(0, 20);
       if (!name) { input.focus(); return; }
-      player.name = name; saveMe(player); lobby();
+      player.name = name; saveMe(player); myRating = null; lobby();
     });
     p.append(form, footer());
     setTimeout(() => input.focus(), 50);
@@ -100,10 +96,16 @@
   function lobby() {
     clearInterval(lobbyTimer);
     show("online");
+    track("screen", { name: "lobby" });
     const p = screen("ล็อบบี้ออนไลน์", `สวัสดี ${player.name} · แข่ง 2 ใน 3 ยก`);
+    const mine = el("p", "on-me", "");
+    p.append(mine);
+    const showMine = () => { if (myRating) mine.textContent = myRating.matches ? `คะแนน ${myRating.rating} · อันดับ ${myRating.rank} · ชนะ ${myRating.wins} แพ้ ${myRating.losses}` : `คะแนนเริ่มต้น ${myRating.rating} · ชนะเกมออนไลน์เพื่อขึ้นอันดับ`; };
+    if (myRating) showMine();
+    else rpc("mf_hello", { p_player: player.id, p_name: player.name }).then((r) => { myRating = r; showMine(); }).catch(() => {});
     const acts = el("div", "on-acts");
-    const quick = button("จับคู่ด่วน", "pick-done", () => run(quick, async () => enterRoom(await rpc("kf_quick_match", { p_player: player.id, p_name: player.name }))));
-    const create = button("สร้างห้องส่วนตัว", "pick-done alt", () => run(create, async () => enterRoom(await rpc("kf_create_room", { p_player: player.id, p_name: player.name, p_public: false }))));
+    const quick = button("จับคู่ด่วน", "pick-done", () => run(quick, async () => { track("online", { action: "quick" }); enterRoom(await rpc("mf_quick_match", { p_player: player.id, p_name: player.name })); }));
+    const create = button("สร้างห้องส่วนตัว", "pick-done alt", () => run(create, async () => { track("online", { action: "create" }); enterRoom(await rpc("mf_create_room", { p_player: player.id, p_name: player.name, p_public: false })); }));
     acts.append(quick, create);
     const join = el("form", "on-form");
     const code = el("input", "on-input code");
@@ -114,11 +116,11 @@
     join.addEventListener("submit", (e) => {
       e.preventDefault();
       if (code.value.trim().length < 5) { code.focus(); return; }
-      run(go, async () => enterRoom(await rpc("kf_join_room", { p_code: code.value, p_player: player.id, p_name: player.name })));
+      run(go, async () => { track("online", { action: "join" }); enterRoom(await rpc("mf_join_room", { p_code: code.value, p_player: player.id, p_name: player.name })); });
     });
     const live = el("div", "on-live");
     live.append(el("h3", "pick-group", "ห้องที่เปิดอยู่"), el("ul", "on-rooms"));
-    p.append(acts, join, live, footer([button("เปลี่ยนชื่อ", "sel-back", login)]));
+    p.append(acts, join, live, footer([button("อันดับ", "sel-back", leaderboard), button("เปลี่ยนชื่อ", "sel-back", login)]));
     refreshRooms();
     lobbyTimer = setInterval(refreshRooms, 5000);
   }
@@ -135,7 +137,7 @@
     const list = panel.querySelector(".on-rooms");
     if (!list || online.hidden) { clearInterval(lobbyTimer); return; }
     let rooms = [];
-    try { rooms = await rpc("kf_list_rooms", {}); } catch (_) { return; }
+    try { rooms = await rpc("mf_list_rooms", {}); } catch (_) { return; }
     list.textContent = "";
     if (!rooms.length) { list.append(el("li", "on-empty", "ยังไม่มีห้อง กดจับคู่ด่วนหรือสร้างห้องได้เลย")); return; }
     for (const r of rooms) {
@@ -143,7 +145,7 @@
       const who = r.guest_name ? `${r.host_name}  vs  ${r.guest_name}` : `${r.host_name}  ·  รอคู่ต่อสู้`;
       li.append(el("b", null, r.code), el("span", null, who), el("i", r.status, r.status === "playing" ? "กำลังสู้" : "รอ"));
       if (!r.guest_name) li.append(button("เข้าร่วม", "sel-back", () => run(li.querySelector("button"), async () =>
-        enterRoom(await rpc("kf_join_room", { p_code: r.code, p_player: player.id, p_name: player.name })))));
+        enterRoom(await rpc("mf_join_room", { p_code: r.code, p_player: player.id, p_name: player.name })))));
       li.append(button("ดู", "sel-back", () => spectate(r)));
       list.append(li);
     }
@@ -154,7 +156,7 @@
   let room = null;
   function blankRoom(info) {
     return {
-      ...info, channel: null, phase: "lobby", score: { p1: 0, p2: 0 }, round: 0,
+      ...info, channel: null, phase: "lobby", score: { p1: 0, p2: 0 }, round: 0, setNo: 1, rated: null,
       picks: { host: null, guest: null }, names: { host: "", guest: "" }, present: { host: false, guest: false }, specs: 0,
       pc: null, dc: null, link: "none", relayTimer: null, pendingIce: [], snapT: 0, specT: 0, lastIn: "", lastInT: 0, heartbeat: null,
     };
@@ -167,16 +169,18 @@
     leaveRoom(true);
     room = blankRoom(info);
     room.names[mySeat()] = player.name;
+    track("screen", { name: "room" });
+    track("online", { action: info.role === "host" ? "host" : "join", room: info.code });
     const sk = G.skills(G.roster()[0].id);
     room.picks[mySeat()] = { kit: G.roster()[0].id, loadout: sk.loadout, ready: false };
     await joinChannel();
-    room.heartbeat = setInterval(() => rpc("kf_set_status", { p_id: room.id, p_token: room.token, p_status: room.phase === "lobby" ? "waiting" : "playing" }).catch(() => {}), 60000);
+    room.heartbeat = setInterval(() => rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: room.phase === "lobby" ? "waiting" : "playing" }).catch(() => {}), 60000);
     renderRoom();
   }
 
   function joinChannel() {
     return new Promise((resolve) => {
-      const ch = client().channel("kf-room-" + room.id, { config: { broadcast: { self: false, ack: false }, presence: { key: player.id } } });
+      const ch = client().channel("mf-room-" + room.id, { config: { broadcast: { self: false, ack: false }, presence: { key: player.id } } });
       room.channel = ch;
       ch.on("presence", { event: "sync" }, onPresence);
       ch.on("broadcast", { event: "pick" }, ({ payload }) => onPick(payload));
@@ -257,6 +261,10 @@
     p.append(seats);
     p.append(el("p", "on-link", linkText()));
     if (result) {
+      const rt = room.rated;
+      const won = room.score[room.role === "host" ? "p1" : "p2"] >= WINS;
+      p.append(el("p", "on-me", !rt || rt.status === "sending" || rt.status === "pending" ? "กำลังบันทึกผล…"
+        : rt.status === "confirmed" ? `คะแนน ${won ? "+" : "−"}${rt.delta}` : rt.status === "disputed" ? "ผลไม่ตรงกัน เกมนี้ไม่นับคะแนน" : "บันทึกผลไม่สำเร็จ"));
       p.append(footer([button("แข่งอีกครั้ง", "pick-done", rematch), button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); })]));
       return;
     }
@@ -309,7 +317,7 @@
     const ready = button(mine.ready ? "ยกเลิกพร้อม" : "พร้อม", "pick-done", () => {
       if (!ok) return;
       room.picks[mySeat()] = { ...mine, ready: !mine.ready };
-      try { localStorage.setItem(`komfaek.skills.${mine.kit}`, JSON.stringify(mine.loadout)); } catch (_) { /* ignore */ }
+      try { localStorage.setItem(`mfighter.skills.${mine.kit}`, JSON.stringify(mine.loadout)); } catch (_) { /* ignore */ }
       sendPick(); renderRoom(); maybeStart();
     });
     ready.disabled = !ok;
@@ -320,7 +328,7 @@
     return won ? `ชนะ ${room.score.p1} - ${room.score.p2}` : `แพ้ ${room.score.p1} - ${room.score.p2}`;
   }
   function rematch() {
-    room.phase = "lobby"; room.score = { p1: 0, p2: 0 }; room.round = 0;
+    room.phase = "lobby"; room.score = { p1: 0, p2: 0 }; room.round = 0; room.setNo += 1; room.rated = null;
     room.picks[mySeat()].ready = false;
     sendPick(); renderRoom();
   }
@@ -334,7 +342,7 @@
     if (room.link === "none") { setTimeout(maybeStart, 500); return; }   // still connecting
     const stages = G.stages();
     const cfg = {
-      round: room.round, score: room.score, stage: stages[Math.floor(Math.random() * stages.length)],
+      round: room.round, setNo: room.setNo, score: room.score, stage: stages[Math.floor(Math.random() * stages.length)],
       p1: { kit: h.kit, loadout: h.loadout, name: room.names.host }, p2: { kit: g.kit, loadout: g.loadout, name: room.names.guest },
     };
     send("round", cfg);
@@ -344,6 +352,7 @@
     if (!room) return;
     room.phase = "fight";
     room.round = cfg.round;
+    if (cfg.setNo) room.setNo = cfg.setNo;   // the host numbers the sets
     room.score = { ...cfg.score };
     if (room.role === "spec") { G.start({ ...cfg, mode: "spectate", me: "p1" }); show("none"); updateNetbar(); return; }
     room.picks.host.ready = false;
@@ -351,9 +360,10 @@
     show("none");
     if (room.role === "host") {
       G.start({ ...cfg, mode: "host", me: "p1" });
+      if (cfg.round === 0) track("match_start", { mode: "online", p1_kit: cfg.p1.kit, p2_kit: cfg.p2.kit, p1_loadout: cfg.p1.loadout, p2_loadout: cfg.p2.loadout });
       NET.onRoundOver = (side) => hostRoundOver(side);
       NET.tick = hostTick;
-      rpc("kf_set_status", { p_id: room.id, p_token: room.token, p_status: "playing" }).catch(() => {});
+      rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: "playing" }).catch(() => {});
     } else {
       G.start({ ...cfg, mode: "guest", me: "p2" });
       NET.sendInput = guestInput;
@@ -375,8 +385,30 @@
     updateNetbar();
     if (room.role === "spec") return;
     NET.tick = null;
-    if (room.role === "host" && p.setOver) rpc("kf_set_status", { p_id: room.id, p_token: room.token, p_status: "waiting" }).catch(() => {});
+    if (p.setOver) reportSet(p.winner);
+    if (room.role === "host" && p.setOver) rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: "waiting" }).catch(() => {});
     renderRoom();
+  }
+
+  // both players report the finished set; the server rates it when the two reports agree
+  async function reportSet(winnerSide) {
+    const r = room;
+    const report = {
+      set_no: r.setNo, winner: winnerSide === "p1" ? "host" : "guest", score: { host: r.score.p1, guest: r.score.p2 },
+      host_kit: r.picks.host?.kit, guest_kit: r.picks.guest?.kit,
+    };
+    r.rated = { status: "sending" };
+    if (r.role === "host") track("match_end", { mode: "online", winner: winnerSide, score: r.score, p1_kit: report.host_kit, p2_kit: report.guest_kit });
+    try {
+      for (let i = 0; i < 6; i++) {           // the other report may land a moment later
+        const res = await rpc("mf_report_match", { p_room: r.id, p_token: r.token, p_report: report });
+        r.rated = res;
+        if (res.status !== "pending") break;
+        await new Promise((ok) => setTimeout(ok, 1500));
+      }
+    } catch (err) { r.rated = { status: "error" }; track("error", { where: "report", msg: String(err.message).slice(0, 120) }); }
+    myRating = null;
+    if (room === r && r.phase === "result") renderRoom();
   }
 
   // ---------- during a round ----------
@@ -414,6 +446,7 @@
   // ---------- spectators ----------
   async function spectate(r) {
     clearInterval(lobbyTimer);
+    track("online", { action: "spectate", room: r.code });
     leaveRoom(true);
     room = blankRoom({ id: r.id, code: r.code, role: "spec" });
     room.names = { host: r.host_name, guest: r.guest_name || "" };
@@ -472,7 +505,7 @@
   }
   function wireDC(dc) {
     room.dc = dc;
-    dc.onopen = () => { clearTimeout(room.relayTimer); room.link = "p2p"; updateNetbar(); if (room.phase !== "fight") renderRoom(); maybeStart(); };
+    dc.onopen = () => { clearTimeout(room.relayTimer); room.link = "p2p"; track("link", { kind: "p2p" }); updateNetbar(); if (room.phase !== "fight") renderRoom(); maybeStart(); };
     dc.onclose = () => { if (room && room.link === "p2p") useRelay(); };
     dc.onmessage = (e) => {
       const m = JSON.parse(e.data);
@@ -487,6 +520,7 @@
   function useRelay() {
     if (!room || room.link === "relay") return;
     room.link = "relay";
+    track("link", { kind: "relay" });
     updateNetbar();
     if (room.phase !== "fight") renderRoom();
     maybeStart();
@@ -524,19 +558,96 @@
     clearTimeout(r.relayTimer);
     try { r.dc?.close(); r.pc?.close(); } catch (_) { /* ignore */ }
     if (r.channel) client().removeChannel(r.channel);
-    if (r.token) rpc("kf_leave_room", { p_id: r.id, p_token: r.token }).catch(() => {});
+    if (r.token) rpc("mf_leave_room", { p_id: r.id, p_token: r.token }).catch(() => {});
     netbar.hidden = true;
     if (NET.mode !== "offline") G.leave();
     if (!silent) show("home");
   }
   addEventListener("pagehide", () => {
     if (!room || !room.token) return;
-    fetch(SUPABASE_URL + "/rest/v1/rpc/kf_leave_room", {
+    fetch(SUPABASE_URL + "/rest/v1/rpc/mf_leave_room", {
       method: "POST", keepalive: true,
       headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ p_id: room.id, p_token: room.token }),
     }).catch(() => {});
   });
+
+  // ---------- leaderboard ----------
+  async function leaderboard() {
+    clearInterval(lobbyTimer);
+    track("screen", { name: "leaderboard" });
+    const p = screen("อันดับผู้เล่น", "คะแนนแบบ Elo เริ่มที่ 1000 นับเฉพาะเกมออนไลน์ที่ทั้งสองฝั่งรายงานผลตรงกัน");
+    const list = el("ol", "on-board");
+    list.append(el("li", "on-empty", "กำลังโหลด…"));
+    p.append(list, footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
+    let rows = [];
+    try { rows = await rpc("mf_leaderboard", { p_limit: 100 }); } catch (_) { list.firstChild.textContent = "โหลดไม่สำเร็จ"; return; }
+    list.textContent = "";
+    if (!rows.length) { list.append(el("li", "on-empty", "ยังไม่มีใครติดอันดับ ชนะเกมออนไลน์เกมแรกเพื่อขึ้นอันดับ")); return; }
+    const head = el("li", "on-row head");
+    head.append(el("b", null, "#"), el("span", null, "ผู้เล่น"), el("em", null, "คะแนน"), el("i", null, "ชนะ-แพ้"), el("i", null, "ชนะ %"));
+    list.append(head);
+    for (const r of rows) {
+      const li = el("li", "on-row" + (r.id === player.id ? " me" : ""));
+      li.append(el("b", null, String(r.rank)), el("span", null, r.name), el("em", null, String(r.rating)),
+        el("i", null, `${r.wins}-${r.losses}`), el("i", null, Math.round((100 * r.wins) / Math.max(1, r.matches)) + "%"));
+      list.append(li);
+    }
+  }
+
+  // ---------- game statistics (from the activity log) ----------
+  const skillName = (key) => {
+    const [kit, id] = key.split(":");
+    return window.CHARACTERS[kit]?.skills[id] ? `${window.CHARACTERS[kit].skills[id].name} (${window.CHARACTERS[kit].name})` : key;
+  };
+  async function stats(days) {
+    clearInterval(lobbyTimer);
+    track("screen", { name: "stats" });
+    const p = screen("สถิติเกม", "นับจากการเล่นจริงทุกเครื่อง ทั้งกับ CPU และออนไลน์");
+    const tabs = el("div", "on-tabs");
+    for (const [d, label] of [[1, "วันนี้"], [7, "7 วัน"], [30, "30 วัน"], [null, "ทั้งหมด"]]) {
+      const b = button(label, "sel-back" + (d === days ? " on" : ""), () => stats(d));
+      tabs.append(b);
+    }
+    const body = el("div", "on-stats", "กำลังโหลด…");
+    p.append(tabs, body, footer(player.name ? [button("ล็อบบี้", "sel-back", lobby)] : []));
+    let st;
+    try { st = await rpc("mf_stats", { p_days: days }); } catch (_) { body.textContent = "โหลดไม่สำเร็จ"; return; }
+    body.textContent = "";
+    const tiles = el("div", "on-tiles");
+    const tile = (n, label) => { const t = el("div", "on-tile"); t.append(el("b", null, String(n ?? 0)), el("span", null, label)); tiles.append(t); };
+    tile(st.players, "ผู้เล่น (เครื่อง)");
+    tile(st.matches, "แมตช์ทั้งหมด");
+    tile(st.matches_online, "แมตช์ออนไลน์");
+    tile(st.matches_cpu, "แมตช์กับ CPU");
+    tile(st.rounds, "ยกที่สู้");
+    tile(st.avg_round_sec ? st.avg_round_sec + " วิ" : "-", "เฉลี่ยต่อยก");
+    body.append(tiles);
+    body.append(el("h3", "pick-group", "ตัวละครที่ถูกเลือก"));
+    const chars = el("ol", "on-board");
+    for (const c of st.characters || []) {
+      const li = el("li", "on-row char-row");
+      li.append(G.portrait(c.kit, 32), el("span", null, window.CHARACTERS[c.kit]?.name || c.kit), el("em", null, c.picks + " ครั้ง"), el("i", null, "ชนะ " + c.win_rate + "%"));
+      chars.append(li);
+    }
+    if (!(st.characters || []).length) chars.append(el("li", "on-empty", "ยังไม่มีข้อมูล"));
+    body.append(chars);
+    body.append(el("h3", "pick-group", "สกิลที่ใช้บ่อย"));
+    const sk = el("ol", "on-board");
+    for (const s of st.skills || []) { const li = el("li", "on-row wide"); li.append(el("span", null, skillName(s.skill)), el("em", null, s.uses + " ครั้ง")); sk.append(li); }
+    if (!(st.skills || []).length) sk.append(el("li", "on-empty", "ยังไม่มีข้อมูล"));
+    body.append(sk);
+    body.append(el("h3", "pick-group", "ผลแข่งออนไลน์ล่าสุด"));
+    const rec = el("ol", "on-board");
+    for (const m of st.recent || []) {
+      const li = el("li", "on-row wide");
+      li.append(el("span", null, `${m.host} (${window.CHARACTERS[m.host_kit]?.name || "?"})  ${m.score_host} - ${m.score_guest}  ${m.guest} (${window.CHARACTERS[m.guest_kit]?.name || "?"})`),
+        el("em", null, "ชนะ: " + m.winner), el("i", null, "±" + m.rating_delta));
+      rec.append(li);
+    }
+    if (!(st.recent || []).length) rec.append(el("li", "on-empty", "ยังไม่มีแมตช์ออนไลน์"));
+    body.append(rec);
+  }
 
   // ---------- the bar over the fight: score, round, connection, leave ----------
   function updateNetbar() {
@@ -551,4 +662,5 @@
 
   // start on the home screen
   show("home");
+  track("screen", { name: "home" });
 })();

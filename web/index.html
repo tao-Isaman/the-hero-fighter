@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>คมแฝก Kom Faek</title>
+<title>mFighter</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#120d1c">
 <meta name="description" content="เกมต่อสู้พิกเซล กัลป์ เกรียงไกร ปะทะ นักสู้พันธุ์ข้าวเหนียว">
@@ -9,7 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="คมแฝก">
+<meta name="apple-mobile-web-app-title" content="mFighter">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&family=Kanit:wght@400;600;800&display=swap">
@@ -332,6 +332,31 @@
   .on-chars .char canvas { width: 48px; height: 48px; border-color: var(--dusk); }
   .on-chars .char.on canvas { border-color: var(--gold); }
   .on-chars li { display: flex; }
+  .home-row { display: flex; gap: 8px; width: 100%; }
+  .home-row .sel-back { flex: 1; }
+  .on-me { margin: 0; color: var(--gold); font-size: 0.95rem; }
+  .on-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .on-row {
+    display: grid; grid-template-columns: 2.4em 1fr auto auto auto; gap: 10px; align-items: center;
+    padding: 6px 10px; border-radius: 8px; background: var(--night); border: 1px solid var(--dusk);
+  }
+  .on-row.head { background: transparent; border: none; color: var(--muted); font-size: 0.8rem; }
+  .on-row.me { border-color: var(--gold); background: #2a1c3a; }
+  .on-row b { font-family: var(--font-pixel); color: var(--gold); }
+  .on-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .on-row em { font-style: normal; font-family: var(--font-pixel); color: var(--paper); }
+  .on-row i { font-style: normal; color: var(--muted); font-size: 0.85rem; min-width: 3.5em; text-align: right; }
+  .on-row.char-row { grid-template-columns: 32px 1fr auto auto; }
+  .on-row.wide { grid-template-columns: 1fr auto auto; }
+  .on-row.char-row canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+  .on-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .on-tabs .sel-back { padding: 4px 14px; }
+  .on-tabs .sel-back.on { border-color: var(--gold); color: var(--gold); }
+  .on-stats { display: grid; gap: 10px; }
+  .on-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .on-tile { display: grid; gap: 2px; padding: 10px; border-radius: 10px; background: var(--night); border: 1px solid var(--dusk); }
+  .on-tile b { font-family: var(--font-pixel); font-size: 1.3rem; color: var(--gold); }
+  .on-tile span { color: var(--muted); font-size: 0.8rem; }
   #netbar {
     position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; align-items: center;
     padding: 4px 6px 4px 14px; border-radius: 999px; background: rgba(18, 13, 28, 0.82); border: 1px solid var(--dusk);
@@ -570,12 +595,12 @@
 </style>
 
 <header>
-  <h1>คมแฝก <small>KOM FAEK</small></h1>
+  <h1>mFighter <small>M-FIGHTER</small></h1>
   <p>ศึกฮีโร่ไทย · ผู้เล่น vs AI</p>
 </header>
 
 <div class="screen">
-  <canvas id="game" tabindex="0" aria-label="เกมคมแฝก: ใช้ลูกศรเดิน กระโดด และ J เพื่อโจมตี"></canvas>
+  <canvas id="game" tabindex="0" aria-label="เกม mFighter: ใช้ลูกศรเดิน กระโดด และ J เพื่อโจมตี"></canvas>
   <div id="status">LOADING…</div>
   <div class="controls">
     <div id="stick-zone" aria-label="จอยเดิน แตะค้างแล้วลากซ้ายขวา">
@@ -589,7 +614,7 @@
       <button class="skill sk sk1" data-act="skill1"><b></b><span></span></button>
       <button class="skill sk sk2" data-act="skill2"><b></b><span></span></button>
       <button class="skill sk sk3" data-act="skill3"><b></b><span></span></button>
-      <button class="skill attack" data-act="attack" aria-label="โจมตี ฟาดคมแฝก">
+      <button class="skill attack" data-act="attack" aria-label="โจมตี">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff4d6" stroke-width="2.6" stroke-linecap="round"><path d="M5 19L17 5"/><path d="M4 16l4 4"/><path d="M15 4.5c2.5-.5 4.5 1.5 4.5 4" stroke-width="1.6" opacity=".8"/></svg>
       </button>
     </div>
@@ -654,10 +679,14 @@
 <!-- first screen: vs CPU or online -->
 <div id="home">
   <div class="home-panel">
-    <h1>คมแฝก <span>KOM FAEK</span></h1>
+    <h1>mFighter <span>M-FIGHTER</span></h1>
     <p>ศึกฮีโร่ไทย · สู้ 1 ต่อ 1</p>
     <button id="home-cpu" class="pick-done" type="button">เล่นกับ CPU</button>
     <button id="home-online" class="pick-done alt" type="button">เล่นออนไลน์</button>
+    <div class="home-row">
+      <button id="home-rank" class="sel-back" type="button">อันดับผู้เล่น</button>
+      <button id="home-stats" class="sel-back" type="button">สถิติเกม</button>
+    </div>
     <small>ออนไลน์: จับคู่ด่วน สร้างห้องเล่นกับเพื่อน หรือเข้าไปดูการแข่ง · แข่ง 2 ใน 3 ยก</small>
   </div>
 </div>
@@ -691,6 +720,7 @@
   // play a different fighter by opening the page with #<id>, e.g. index.html#kan
   window.ACTIVE_CHARACTER = (location.hash.slice(1) in (window.CHARACTERS || {})) ? location.hash.slice(1) : "kan";
 </script>
+<script src="track.js"></script>
 <script src="sfx.js"></script>
 <script src="game.js"></script>
 <script src="vendor/supabase.js"></script>

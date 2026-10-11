@@ -1,4 +1,4 @@
-# คมแฝก (Kom Faek) — web prototype
+# mFighter (m-Fighter) — web prototype
 
 2D side-scrolling brawler. Open `index.html` through a local server:
 

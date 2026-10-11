@@ -5,7 +5,7 @@
   const AC = window.AudioContext || window.webkitAudioContext;
   let ctx = null, master = null, verb = null, noiseBuf = null, driveCurve = null;
   let muted = false;
-  try { muted = localStorage.getItem("komfaek.sound") === "off"; } catch (e) {}
+  try { muted = localStorage.getItem("mfighter.sound") === "off"; } catch (e) {}
 
   function init() {
     if (ctx || !AC) return;
@@ -149,7 +149,7 @@
     get muted() { return muted; },
     setMuted(m) {
       muted = !!m;
-      try { localStorage.setItem("komfaek.sound", muted ? "off" : "on"); } catch (e) {}
+      try { localStorage.setItem("mfighter.sound", muted ? "off" : "on"); } catch (e) {}
       if (master) master.gain.setTargetAtTime(muted ? 0 : 0.8, ctx.currentTime, 0.02);
     },
     unlock,

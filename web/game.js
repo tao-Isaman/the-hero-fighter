@@ -1,4 +1,4 @@
-// Kom Faek — 2D side-scrolling versus fighter.
+// mFighter (m-Fighter) — 2D side-scrolling versus fighter.
 // Two fighters from web/characters/<id>/character.js face off: one played by you, one by the AI.
 // Stage and shared effects come from assets/manifest.js (window.MANIFEST).
 (() => {
@@ -15,7 +15,7 @@
 
   // ---------- fighters: you pick P1 and the AI's fighter on the select screen ----------
   const ROSTER = Object.keys(window.CHARACTERS);
-  const MATCH_KEY = "komfaek.match";
+  const MATCH_KEY = "mfighter.match";
   let P1_ID = ROSTER.includes(window.ACTIVE_CHARACTER) ? window.ACTIVE_CHARACTER : ROSTER[0];
   let P2_ID = ROSTER.find((id) => id !== P1_ID) || P1_ID;
   try {
@@ -269,7 +269,7 @@
 
   // ---------- loadouts ----------
   let p1Kit = KITS[P1_ID];
-  let LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
+  let LOADOUT_KEY = `mfighter.skills.${P1_ID}`;
   // A loadout is always [normal, normal, ultimate]: slots U, I and O.
   const normalsOf = (kit) => kit.c.skillOrder.filter((id) => !kit.c.skills[id].ult);
   const ultsOf = (kit) => kit.c.skillOrder.filter((id) => kit.c.skills[id].ult);
@@ -285,7 +285,7 @@
   }
   function savedLoadout(kit) {
     let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(`komfaek.skills.${kit.id}`) || "null"); } catch (_) { /* storage unavailable */ }
+    try { saved = JSON.parse(localStorage.getItem(`mfighter.skills.${kit.id}`) || "null"); } catch (_) { /* storage unavailable */ }
     return normalizeLoadout(kit, Array.isArray(saved) ? saved : kit.c.defaultLoadout);
   }
   let p1Loadout = savedLoadout(p1Kit);
@@ -323,6 +323,7 @@
       skill: null, ghosts: [], ghostT: 0, buffT: 0, buff: null,
       loadout, cooldowns: [0, 0, 0],
       comboCount: 0, comboTimer: 0,
+      stats: { dmg: 0, hits: 0, crits: 0, skills: {} },   // for activity tracking (track.js)
       input: ctrl === "human" ? { keys, pressed } : ctrl === "remote" ? NET.remote : { keys: new Set(), pressed: new Set() },
       ai: { think: 0.6, plan: null, planT: 0, aggression: 0.7 },
     };
@@ -401,6 +402,7 @@
     const guard = target.buffT > 0 && target.buff && target.buff.guard;   // a guarding buff shrinks the blow
     const dmg = Math.round(randInt(lo, hi) * (crit ? 2.2 : 1) * (buffed ? buffed.dmg || 1 : 1) * (guard || 1));
     target.hp = Math.max(0, target.hp - dmg);
+    if (attacker.stats) { attacker.stats.dmg += dmg; attacker.stats.hits += 1; if (crit) attacker.stats.crits += 1; }
     target.flash = 0.75;
 
     // getting hit interrupts combos and normal skills; ultimates have armor
@@ -594,6 +596,8 @@
     f.t = 0;
     f.vx = 0;
     f.cooldowns[slot] = def.cd;
+    const sk = f.kit.id + ":" + id;
+    f.stats.skills[sk] = (f.stats.skills[sk] || 0) + 1;
     showBanner(f, def);
     if (def.ult) sfx.ult();
     if (def.sound) sfx[def.sound]?.();
@@ -1455,7 +1459,7 @@
     const others = ROSTER.filter((id) => id !== P1_ID);
     P2_ID = others.length ? others[Math.floor(Math.random() * others.length)] : P1_ID;
     p1Kit = KITS[P1_ID];
-    LOADOUT_KEY = `komfaek.skills.${P1_ID}`;
+    LOADOUT_KEY = `mfighter.skills.${P1_ID}`;
     p1Loadout = [...draft.normals, draft.ult];
     try { localStorage.setItem(LOADOUT_KEY, JSON.stringify(p1Loadout)); } catch (_) { /* ignore */ }
     try { localStorage.setItem(MATCH_KEY, JSON.stringify({ p1: P1_ID })); } catch (_) { /* ignore */ }
@@ -1463,6 +1467,7 @@
     syncSkillButtons();
     matchLive = true;
     closeMenu();
+    track("match_start", { mode: "cpu", p1_kit: state.p1.kit.id, p2_kit: state.p2.kit.id, p1_loadout: state.p1.loadout, p2_loadout: state.p2.loadout });
   }
   if (charsel) {
     for (const b of document.querySelectorAll("[data-open-chars]")) b.addEventListener("click", openMenu);
@@ -1490,6 +1495,11 @@
     if (pickerOpen || menuOpen) { pressed.clear(); return; }
     if (pressed.has("restart") && NET.mode === "offline") { reset(); pressed.clear(); return; }
     // after a K.O.: offline goes back to the select screen, online reports the round (once)
+    if (state.over && !state.tracked) {
+      state.tracked = true;
+      track("round_end", roundInfo());
+      if (NET.mode === "offline") track("match_end", { mode: "cpu", winner: sideOf(state.winner), score: { p1: state.winner === state.p1 ? 1 : 0, p2: state.winner === state.p2 ? 1 : 0 }, p1_kit: state.p1.kit.id, p2_kit: state.p2.kit.id });
+    }
     if (state.over && state.overT > 3.2) {
       if (NET.mode !== "host") { matchLive = false; openMenu(); return; }
       if (!state.reported) { state.reported = true; NET.onRoundOver?.(state.winner === state.p1 ? "p1" : "p2"); }
@@ -1554,6 +1564,18 @@
     NET.remote.pressed.clear();
   }
 
+  // ---------- activity tracking (see track.js) ----------
+  const track = (type, data) => window.MF?.track(type, data);
+  function roundInfo() {
+    const a = state.p1, b = state.p2;
+    return {
+      mode: NET.mode === "offline" ? "cpu" : "online", round: NET.round || 0, stage: (state.bg || "").split("/").pop().replace(".png", ""),
+      secs: Math.round(state.time), winner: sideOf(state.winner), p1_kit: a.kit.id, p2_kit: b.kit.id,
+      p1_hp: a.hp, p2_hp: b.hp, p1_dmg: a.stats.dmg, p2_dmg: b.stats.dmg, p1_hits: a.stats.hits, p2_hits: b.stats.hits,
+      p1_crits: a.stats.crits, p2_crits: b.stats.crits, p1_skills: a.stats.skills, p2_skills: b.stats.skills,
+    };
+  }
+
   // ---------- online: snapshots ----------
   // The host runs the fight and sends snapshots; guests and spectators draw them. Sparks and
   // sounds travel as events (each screen makes its own sparks), everything else as state.
@@ -1601,6 +1623,36 @@
     if (o.buff) { const [kid, sid] = o.buff.split(":"); f.buff = KITS[kid].c.skills[sid].buff; }
     return f;
   }
+  // spectators get ~10 snapshots a second; they are played back slightly late on the host's clock,
+  // with the fighters and camera gliding from one snapshot to the next
+  const VIEW = { buf: [], clock: null, delay: 0.18, from: null, to: null };
+  function queueSnapshot(s) {
+    VIEW.buf.push(s);
+    const target = s.time - VIEW.delay;
+    if (VIEW.clock === null || Math.abs(VIEW.clock - target) > 0.35) VIEW.clock = target;   // (re)sync
+    else VIEW.clock += (target - VIEW.clock) * 0.05;                                        // drift gently
+  }
+  const posOf = (s) => ({ time: s.time, camX: s.camX, p1: { x: s.p1.x, y: s.p1.y }, p2: { x: s.p2.x, y: s.p2.y } });
+  function playSnapshots(dt) {
+    if (VIEW.clock === null) return;
+    VIEW.clock += dt;
+    while (VIEW.buf.length && VIEW.buf[0].time <= VIEW.clock) {
+      const s = VIEW.buf.shift();
+      VIEW.from = posOf(s);
+      applySnapshot(s);
+    }
+    if (VIEW.buf.length > 30) VIEW.buf.splice(0, VIEW.buf.length - 30);
+    const next = VIEW.buf[0];
+    if (!next || !VIEW.from || !state) return;
+    const span = next.time - VIEW.from.time;
+    const k = span > 0 ? clamp((VIEW.clock - VIEW.from.time) / span, 0, 1) : 0;
+    const lerp = (a, b) => a + (b - a) * k;
+    for (const side of ["p1", "p2"]) {
+      state[side].x = lerp(VIEW.from[side].x, next[side].x);
+      state[side].y = lerp(VIEW.from[side].y, next[side].y);
+    }
+    state.camX = lerp(VIEW.from.camX, next.camX);
+  }
   function applySnapshot(s) {
     const sparks = state ? state.sparks : [];
     const p1 = unpackFighter(s.p1), p2 = unpackFighter(s.p2);
@@ -1621,6 +1673,7 @@
   function viewUpdate(dt) {
     if (NET.mode === "guest" && NET.sendInput) NET.sendInput([...keys], [...pressed]);
     pressed.clear();
+    if (NET.mode === "spectate") playSnapshots(dt);
     if (!state) return;
     for (const f of state.fighters) { f.t += dt; if (f.skill) f.skill.t += dt; }
     for (const v of state.vfx) {
@@ -2279,10 +2332,10 @@
   fitCanvas();
   reset();
   // read-only handle for automated tests and debugging in the console
-  window.__komfaek = { get state() { return state; } };
+  window.__mfighter = { get state() { return state; } };
 
   // online.js talks to the game through this
-  window.KomfaekNet = {
+  window.MFighterNet = {
     NET,
     roster: () => ROSTER.map((id) => ({ id, name: window.CHARACTERS[id].name })),
     portrait: (id, size) => portraitCanvas(id, size),
@@ -2298,6 +2351,8 @@
       NET.me = cfg.me || "p1";
       NET.events.length = 0;
       NET.specEvents.length = 0;
+      NET.round = cfg.round || 0;
+      VIEW.buf.length = 0; VIEW.clock = null; VIEW.from = null;
       reset(cfg);
       syncSkillButtons();
       matchLive = true;
@@ -2308,7 +2363,7 @@
       const s = snapshot(buf.splice(0));
       return s;
     },
-    apply: (s) => applySnapshot(s),
+    apply: (s) => (NET.mode === "spectate" ? queueSnapshot(s) : applySnapshot(s)),
     get over() { return state.over; },
     // back to offline play and the select screen
     leave() {

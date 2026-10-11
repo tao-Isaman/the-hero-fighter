@@ -2,8 +2,8 @@
 // Offline play: every game file is cached on install. Pages are fetched fresh when online
 // (falling back to the cache), everything else is served from the cache first.
 const VERSION = "__VERSION__";
-const CACHE = "komfaek-" + VERSION;
-const FONT_CACHE = "komfaek-fonts";
+const CACHE = "mfighter-" + VERSION;
+const FONT_CACHE = "mfighter-fonts";
 const FILES = __FILES__;
 
 self.addEventListener("install", (e) => {
