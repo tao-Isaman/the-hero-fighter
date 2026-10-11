@@ -298,6 +298,18 @@
   // ---------- world state ----------
   let state;
 
+  // ---------- online play (online.js drives this) ----------
+  // mode: "offline" (vs CPU) | "host" (runs the fight) | "guest" (sends input, shows the host's snapshots)
+  //       | "spectate" (shows snapshots). me: which fighter this screen plays ("p1" / "p2").
+  const NET = {
+    mode: "offline", me: "p1",
+    remote: { keys: new Set(), pressed: new Set() },   // the guest's controls, fed by online.js on the host
+    events: [], specEvents: [],                        // sparks and sounds since the last snapshot
+    onRoundOver: null, sendInput: null, tick: null,
+  };
+  const meF = () => state[NET.me] || state.p1;
+  const isPlayer = (f) => f.ctrl !== "ai";
+
   function newFighter(kit, x, facing, ctrl, loadout) {
     const hp = FIGHTER_HP;
     return {
@@ -311,7 +323,7 @@
       skill: null, ghosts: [], ghostT: 0, buffT: 0, buff: null,
       loadout, cooldowns: [0, 0, 0],
       comboCount: 0, comboTimer: 0,
-      input: ctrl === "human" ? { keys, pressed } : { keys: new Set(), pressed: new Set() },
+      input: ctrl === "human" ? { keys, pressed } : ctrl === "remote" ? NET.remote : { keys: new Set(), pressed: new Set() },
       ai: { think: 0.6, plan: null, planT: 0, aggression: 0.7 },
     };
   }
@@ -320,14 +332,20 @@
     const list = M.backgrounds && M.backgrounds.length ? M.backgrounds : [M.background];
     return list[Math.floor(Math.random() * list.length)];
   }
-  function reset() {
-    const p1 = newFighter(p1Kit, 220, 1, "human", p1Loadout);
-    const p2 = newFighter(KITS[P2_ID], 470, -1, "ai", aiLoadout(KITS[P2_ID]));
+  function reset(cfg) {
+    // cfg (online): { p1: {kit, loadout, name}, p2: {...}, stage }; the host plays p1, the guest p2
+    const p1 = cfg ? newFighter(KITS[cfg.p1.kit], 220, 1, NET.mode === "host" ? "human" : "net", normalizeLoadout(KITS[cfg.p1.kit], cfg.p1.loadout))
+      : newFighter(p1Kit, 220, 1, "human", p1Loadout);
+    const p2 = cfg ? newFighter(KITS[cfg.p2.kit], 470, -1, NET.mode === "host" ? "remote" : "net", normalizeLoadout(KITS[cfg.p2.kit], cfg.p2.loadout))
+      : newFighter(KITS[P2_ID], 470, -1, "ai", aiLoadout(KITS[P2_ID]));
+    if (cfg) { p1.tag = cfg.p1.name; p2.tag = cfg.p2.name; }
     p1.opp = p2;
     p2.opp = p1;
+    NET.remote.keys.clear();
+    NET.remote.pressed.clear();
     state = {
       p1, p2, fighters: [p1, p2],
-      bg: randomStage(),   // a different stage every match
+      bg: cfg && cfg.stage ? cfg.stage : randomStage(),   // a different stage every match
       camX: (220 + 470) / 2 - W / 2,
       popups: [], sparks: [], waves: [], vfx: [], shots: [], banners: [],
       flashRed: 0, dim: 0, time: 0,
@@ -347,7 +365,7 @@
     const near = state.popups.filter((q) => q.t < 0.45 && Math.abs(q.x - x) < 70).length;
     state.popups.push({
       x, y: y - near * (crit ? 30 : 22), amount, crit, t: 0, life: crit ? 1.1 : opts.skill ? 1.0 : 0.8,
-      dx: rand(-14, 14), skill: !!opts.skill, enemy: !!opts.enemy, color: opts.color,
+      dx: rand(-14, 14), skill: !!opts.skill, victim: opts.victim, color: opts.color,
     });
   }
 
@@ -356,6 +374,7 @@
   }
 
   function addSparks(x, y, n, color) {
+    if (NET.mode === "host") { const e = ["s", Math.round(x), Math.round(y), n, color]; NET.events.push(e); NET.specEvents.push(e); }
     for (let i = 0; i < n; i++) {
       const a = rand(0, Math.PI * 2), s = rand(80, 260);
       state.sparks.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 60, t: 0, life: rand(0.18, 0.4), color });
@@ -419,7 +438,7 @@
       for (const v of state.vfx) if (v.follow === attacker && v.buffAura) v.life += buffed.extendOnHit;
     }
     const hy = target.y - 112;
-    addPopup(target.x + rand(-10, 10), hy, dmg, crit, { skill: !!o.skill, enemy: target.ctrl === "human" });
+    addPopup(target.x + rand(-10, 10), hy, dmg, crit, { skill: !!o.skill, victim: target === state.p1 ? "p1" : "p2" });
     addSparks(target.x - o.dir * 14, hy + 34, 12 + (o.power || 0) * 8, o.sparkColor || "#ffd23f");
     if (o.power) addSparks(target.x - o.dir * 14, hy + 34, 8, o.sparkColor2 || "#ff6a2b");
     if (o.power === 2) addShockwave(target.x, GROUND_Y);
@@ -467,7 +486,18 @@
   // ---------- combos ----------
   // ---------- sound ----------
   const noop = () => {};
-  const sfx = window.SFX || { swing: noop, hit: noop, clang: noop, boom: noop, thud: noop, jump: noop, ult: noop, charge: noop, bell: noop, ko: noop, gun: noop };
+  const baseSfx = window.SFX || { swing: noop, hit: noop, clang: noop, boom: noop, thud: noop, jump: noop, ult: noop, charge: noop, bell: noop, ko: noop, gun: noop };
+  // while hosting, every sound is also recorded so the guest and spectators hear it too
+  const sfx = new Proxy(baseSfx, {
+    get(t, name) {
+      const fn = t[name];
+      if (typeof fn !== "function") return fn;
+      return (...args) => {
+        if (NET.mode === "host") { const e = ["a", name, args]; NET.events.push(e); NET.specEvents.push(e); }
+        return fn.apply(t, args);
+      };
+    },
+  });
   // punches always sound like fists; everything else uses the character's weapon (see characters/README.md)
   function weaponOf(f, o) { return o && o.punch ? "fist" : f.kit.c.sfx || "fist"; }
 
@@ -558,7 +588,7 @@
     f.skill = { id, def, t: 0, hitIdx: 0, phase: 0, thrown: false, landed: false, dashTo: null, ct: 0, trailT: 0 };
     // auto-target: turn toward the opponent, and melee skills dash in to reach them
     const d = f.opp.x - f.x;
-    if (f.ctrl !== "human") f.facing = Math.sign(d) || f.facing;
+    if (!isPlayer(f)) f.facing = Math.sign(d) || f.facing;
     if (def.assist && Math.sign(d) === f.facing && Math.abs(d) > def.assist && Math.abs(d) < def.assist + 200) f.skill.dashTo = f.opp.x - f.facing * def.assist;
     f.anim = "sk_" + id;
     f.t = 0;
@@ -804,6 +834,7 @@
       sk.buffed = true;
       f.buffT = def.buff.dur;
       f.buff = def.buff;
+      f.buffSrc = f.kit.id + ":" + sk.id;   // how snapshots name the buff
       if (def.buff.aura) spawnFx(f, [{ ...def.buff.aura, life: def.buff.dur, follow: true, buffAura: true }]);
       if (def.buff.heal) {
         const gain = Math.min(def.buff.heal, f.maxHp - f.hp);
@@ -1057,7 +1088,7 @@
         f.air = false;
         const ground = f.kit.c.combo;
         const next = f.sinceAttack < COMBO_WINDOW && f.lastCombo < ground.length - 1 ? f.lastCombo + 1 : 0;
-        if (f.ctrl !== "human") f.facing = Math.sign(o.x - f.x) || f.facing;   // the player turns by walking
+        if (!isPlayer(f)) f.facing = Math.sign(o.x - f.x) || f.facing;   // players turn by walking
         startAttack(f, next);
       } else if (!attacking && !f.airUsed) {
         f.air = true;
@@ -1114,7 +1145,7 @@
       if (input.keys.has("left")) dir -= 1;
       if (input.keys.has("right")) dir += 1;
       // the player faces the way they walk; the AI always faces its opponent (walking away is a back-step)
-      if (f.ctrl === "human") { if (dir) f.facing = dir; }
+      if (isPlayer(f)) { if (dir) f.facing = dir; }
       else f.facing = Math.sign(o.x - f.x) || f.facing;
       const haste = f.buffT > 0 && f.buff ? f.buff.speed || 1 : 1;
       f.vx = dir * f.kit.c.walkSpeed * haste * (dir === f.facing ? 1 : 0.75);
@@ -1230,6 +1261,7 @@
   }
 
   function updateAI(f, dt) {
+    if (f.ctrl !== "ai") return;
     const ai = f.ai;
     const inp = f.input;
     inp.pressed.clear();
@@ -1268,8 +1300,11 @@
   // ---------- skill picker (your fighter's 3 equipped skills) ----------
   const skillBtns = [...document.querySelectorAll(".skill[data-act^='skill']")];
   function syncSkillButtons() {
+    const me = state ? meF() : null;
+    const kit = me ? me.kit : p1Kit, loadout = me ? me.loadout : p1Loadout;
     skillBtns.forEach((btn, i) => {
-      const def = p1Kit.c.skills[p1Loadout[i]];
+      const def = kit.c.skills[loadout[i]];
+      if (!def) return;
       btn.style.setProperty("--icon", `url("${M.vfx[def.icon]}")`);
       btn.classList.toggle("ult", !!def.ult);
       btn.setAttribute("aria-label", def.name);
@@ -1278,9 +1313,9 @@
     });
   }
   function updateSkillButtons() {
-    const p = state.p1;
+    const p = meF();
     skillBtns.forEach((btn, i) => {
-      const def = p1Kit.c.skills[p.loadout[i]];
+      const def = p.kit.c.skills[p.loadout[i]];
       if (!def) return;
       const cd = p.cooldowns[i];
       btn.style.setProperty("--cd", String(cd > 0 ? cd / def.cd : 0));
@@ -1451,10 +1486,14 @@
   }
   // ---------- update ----------
   function update(rawDt) {
+    if (NET.mode === "guest" || NET.mode === "spectate") { viewUpdate(rawDt); return; }
     if (pickerOpen || menuOpen) { pressed.clear(); return; }
-    if (pressed.has("restart")) { reset(); pressed.clear(); return; }
-    // after a K.O. the game goes back to the select screen
-    if (state.over && state.overT > 3.2) { matchLive = false; openMenu(); return; }
+    if (pressed.has("restart") && NET.mode === "offline") { reset(); pressed.clear(); return; }
+    // after a K.O.: offline goes back to the select screen, online reports the round (once)
+    if (state.over && state.overT > 3.2) {
+      if (NET.mode !== "host") { matchLive = false; openMenu(); return; }
+      if (!state.reported) { state.reported = true; NET.onRoundOver?.(state.winner === state.p1 ? "p1" : "p2"); }
+    }
 
     // KO slow motion
     let dt = rawDt;
@@ -1463,10 +1502,12 @@
 
     if (state.hitStop > 0) {
       state.hitStop -= dt;
-      // keep the player's combo input alive through the impact freeze
-      const p = state.p1;
-      if (pressed.has("attack") && p.combo >= 0 && p.combo < attacksOf(p).length - 1) p.queued = true;
+      // keep the players' combo input alive through the impact freeze
+      for (const p of state.fighters) {
+        if (isPlayer(p) && p.input.pressed.has("attack") && p.combo >= 0 && p.combo < attacksOf(p).length - 1) p.queued = true;
+      }
       pressed.clear();
+      NET.remote.pressed.clear();
       return;
     }
 
@@ -1510,6 +1551,90 @@
     state.camX += (target - state.camX) * Math.min(1, dt * 5);
     state.camX = clamp(state.camX, 0, M.worldWidth - W);
     pressed.clear();
+    NET.remote.pressed.clear();
+  }
+
+  // ---------- online: snapshots ----------
+  // The host runs the fight and sends snapshots; guests and spectators draw them. Sparks and
+  // sounds travel as events (each screen makes its own sparks), everything else as state.
+  const SHOT_DEFS = {};
+  for (const kit of Object.values(KITS)) {
+    let n = 0;
+    const walk = (o) => {
+      if (!o || typeof o !== "object") return;
+      for (const [k, v] of Object.entries(o)) {
+        if (k === "shot" && v && typeof v === "object") { v.__key = kit.id + "#" + n++; SHOT_DEFS[v.__key] = v; }
+        walk(v);
+      }
+    };
+    walk(kit.c.combo); walk(kit.c.airCombo); walk(kit.c.skills);
+  }
+  const sideOf = (f) => (f === state.p1 ? "p1" : f === state.p2 ? "p2" : null);
+  const fighterOf = (side) => (side ? state[side] : null);
+  function packFighter(f) {
+    const o = {};
+    for (const [k, v] of Object.entries(f)) {
+      if (k === "opp" || k === "input" || k === "ai") continue;
+      if (k === "kit") o.kit = v.id;
+      else if (k === "skill") o.skill = v ? { ...v, def: undefined } : null;
+      else if (k === "buff") o.buff = v ? f.buffSrc : null;
+      else o[k] = v;
+    }
+    return o;
+  }
+  function snapshot(events) {
+    const s = { p1: packFighter(state.p1), p2: packFighter(state.p2), ev: events };
+    for (const [k, v] of Object.entries(state)) {
+      if (["p1", "p2", "fighters", "timers", "sparks", "winner"].includes(k)) continue;
+      if (k === "vfx") s.vfx = v.map((e) => ({ ...e, follow: sideOf(e.follow) }));
+      else if (k === "shots") s.shots = v.map((e) => ({ ...e, owner: sideOf(e.owner), def: e.def.__key }));
+      else if (k === "banners") s.banners = v.map((e) => ({ ...e, owner: sideOf(e.owner) }));
+      else s[k] = v;
+    }
+    s.winner = state.winner ? sideOf(state.winner) : null;
+    return s;
+  }
+  function unpackFighter(o) {
+    const kit = KITS[o.kit];
+    const f = { ...o, kit, input: { keys: new Set(), pressed: new Set() }, ai: {} };
+    if (o.skill) f.skill = { ...o.skill, def: kit.c.skills[o.skill.id] };
+    if (o.buff) { const [kid, sid] = o.buff.split(":"); f.buff = KITS[kid].c.skills[sid].buff; }
+    return f;
+  }
+  function applySnapshot(s) {
+    const sparks = state ? state.sparks : [];
+    const p1 = unpackFighter(s.p1), p2 = unpackFighter(s.p2);
+    p1.opp = p2; p2.opp = p1;
+    const next = { ...s, p1, p2, fighters: [p1, p2], sparks, timers: [] };
+    delete next.ev;
+    state = next;
+    state.vfx = s.vfx.map((e) => ({ ...e, follow: fighterOf(e.follow) }));
+    state.shots = s.shots.filter((e) => SHOT_DEFS[e.def]).map((e) => ({ ...e, owner: fighterOf(e.owner), def: SHOT_DEFS[e.def] }));
+    state.banners = s.banners.map((e) => ({ ...e, owner: fighterOf(e.owner) }));
+    state.winner = fighterOf(s.winner);
+    for (const e of s.ev || []) {
+      if (e[0] === "s") addSparks(e[1], e[2], e[3], e[4]);
+      else if (e[0] === "a") baseSfx[e[1]]?.(...e[2]);
+    }
+  }
+  // between snapshots, guests and spectators keep things moving so the picture stays smooth
+  function viewUpdate(dt) {
+    if (NET.mode === "guest" && NET.sendInput) NET.sendInput([...keys], [...pressed]);
+    pressed.clear();
+    if (!state) return;
+    for (const f of state.fighters) { f.t += dt; if (f.skill) f.skill.t += dt; }
+    for (const v of state.vfx) {
+      v.t += dt; v.x += v.vx * dt; v.y += v.vy * dt;
+      if (v.follow) { v.x = v.follow.x - v.follow.facing * (v.fdx || 0); if (v.fdy !== undefined) v.y = v.follow.y + v.fdy; }
+    }
+    for (const sh of state.shots) if (sh.def.straight) { sh.x += sh.dir * sh.def.speed * dt * (sh.cos ?? 1); sh.y += sh.def.speed * dt * (sh.sin ?? 0); }
+    for (const pp of state.popups) pp.t += dt;
+    for (const b of state.banners) b.t += dt;
+    for (const w of state.waves) w.t += dt;
+    for (const sp of state.sparks) { sp.t += dt; sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.vy += 900 * dt; }
+    state.sparks = state.sparks.filter((sp) => sp.t < sp.life);
+    state.shake = Math.max(0, state.shake - dt * 30);
+    if (state.over) state.overT = (state.overT || 0) + dt;
   }
 
   // ---------- render ----------
@@ -1707,7 +1832,7 @@
         ctx.lineWidth = pp.skill ? 5 : 4;
         ctx.strokeStyle = pp.skill ? "#3a1204" : "#120d1c";
         ctx.strokeText(pp.amount, 0, 0);
-        ctx.fillStyle = pp.color || (pp.enemy ? "#ff8a80" : pp.skill ? "#ffb347" : "#ffffff");
+        ctx.fillStyle = pp.color || (pp.victim === NET.me ? "#ff8a80" : pp.skill ? "#ffb347" : "#ffffff");
         ctx.fillText(pp.amount, 0, 0);
         ctx.restore();
       }
@@ -1911,7 +2036,7 @@
       ctx.font = (b.ult ? "800 22px" : "600 17px") + " 'Kanit', 'Noto Sans Thai', sans-serif";
       if (b.ult) {
         const w = ctx.measureText(b.text).width + 34;
-        ctx.fillStyle = f.ctrl === "human" ? "rgba(120, 10, 10, 0.75)" : "rgba(40, 10, 90, 0.78)";
+        ctx.fillStyle = f === meF() ? "rgba(120, 10, 10, 0.75)" : "rgba(40, 10, 90, 0.78)";
         ctx.beginPath();
         ctx.moveTo(-w / 2 - 10, 0); ctx.lineTo(-w / 2, -16); ctx.lineTo(w / 2, -16);
         ctx.lineTo(w / 2 + 10, 0); ctx.lineTo(w / 2, 16); ctx.lineTo(-w / 2, 16); ctx.closePath();
@@ -1923,7 +2048,7 @@
       ctx.lineWidth = 5;
       ctx.strokeStyle = "#120d1c";
       ctx.strokeText(b.text, 0, 1);
-      ctx.fillStyle = b.ult ? "#fff1b0" : f.ctrl === "human" ? "#ffd23f" : "#c9b6ff";
+      ctx.fillStyle = b.ult ? "#fff1b0" : f === meF() ? "#ffd23f" : "#c9b6ff";
       ctx.fillText(b.text, 0, 1);
       ctx.restore();
     }
@@ -1946,13 +2071,13 @@
 
   // desktop skill bar (phones use the on-screen buttons instead)
   function drawSkillBar() {
-    if (isTouch) return;
-    const p = state.p1;
+    if (isTouch || NET.mode === "spectate") return;
+    const p = meF();
     const size = 30, gap = 6;
     const x0 = 10, y0 = H - size - 10;
     const keysLbl = ["U", "I", "O"];
     for (let i = 0; i < 3; i++) {
-      const def = p1Kit.c.skills[p.loadout[i]];
+      const def = p.kit.c.skills[p.loadout[i]];
       if (!def) continue;
       const x = x0 + i * (size + gap);
       ctx.fillStyle = "rgba(18,13,28,0.75)";
@@ -2020,7 +2145,7 @@
     ctx.fillText(f.kit.c.hudName, right ? bx + bw : bx, 20);
     ctx.font = "8px 'Silkscreen', monospace";
     ctx.fillStyle = right ? "#c9b6ff" : "#ffd23f";
-    ctx.fillText(f.ctrl === "human" ? "YOU" : "CPU", right ? bx + bw : bx, 47);
+    ctx.fillText(f.tag ? (f === meF() && NET.mode !== "spectate" ? "YOU · " : "") + f.tag : f.ctrl === "human" ? "YOU" : "CPU", right ? bx + bw : bx, 47);
 
     ctx.fillStyle = "#120d1c";
     ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
@@ -2084,7 +2209,7 @@
     drawFighterHud(state.p2, "right");
 
     // combo pips for your fighter and the combo ring on the phone attack button
-    const p = state.p1;
+    const p = meF();
     const step = p.combo >= 0 ? p.combo : (p.sinceAttack < COMBO_WINDOW ? p.lastCombo : -1);
     const pipCount = p.combo >= 0 ? attacksOf(p).length : p.kit.c.combo.length;
     if (atkBtn) atkBtn.style.setProperty("--combo", String((step + 1) / pipCount));
@@ -2099,8 +2224,9 @@
     if (state.over && state.overT > 0.8) {
       ctx.fillStyle = "rgba(18, 13, 28, 0.45)";
       ctx.fillRect(0, 0, W, H);
-      const won = state.winner === state.p1;
-      drawCenterText(won ? "YOU WIN" : "YOU LOSE", "K.O.  ·  R = REMATCH", won ? "#ffd23f" : "#e4483f");
+      const won = state.winner === meF();
+      if (NET.mode === "spectate") drawCenterText((state.winner && state.winner.tag) || "K.O.", "WINS", "#ffd23f");
+      else drawCenterText(won ? "YOU WIN" : "YOU LOSE", NET.mode === "offline" ? "K.O.  ·  R = REMATCH" : "K.O.", won ? "#ffd23f" : "#e4483f");
     } else if (state.over) {
       drawCenterText("K.O.", null, "#e4483f");
     }
@@ -2143,6 +2269,7 @@
     last = now;
     try {
       update(dt);
+      if (NET.tick) NET.tick(dt);
       render();
     } catch (err) {
       if (loopErrors++ < 3) console.error(err);
@@ -2153,6 +2280,48 @@
   reset();
   // read-only handle for automated tests and debugging in the console
   window.__komfaek = { get state() { return state; } };
+
+  // online.js talks to the game through this
+  window.KomfaekNet = {
+    NET,
+    roster: () => ROSTER.map((id) => ({ id, name: window.CHARACTERS[id].name })),
+    portrait: (id, size) => portraitCanvas(id, size),
+    skills: (id) => {
+      const kit = KITS[id];
+      const info = (sid) => { const d = kit.c.skills[sid]; return { id: sid, name: d.name, desc: d.desc, cd: d.cd, ult: !!d.ult, icon: M.vfx[d.icon] }; };
+      return { normals: normalsOf(kit).map(info), ults: ultsOf(kit).map(info), loadout: savedLoadout(kit) };
+    },
+    stages: () => (M.backgrounds && M.backgrounds.length ? M.backgrounds : [M.background]),
+    // start a round: cfg = { mode, me, p1: {kit, loadout, name}, p2: {...}, stage }
+    start(cfg) {
+      NET.mode = cfg.mode;
+      NET.me = cfg.me || "p1";
+      NET.events.length = 0;
+      NET.specEvents.length = 0;
+      reset(cfg);
+      syncSkillButtons();
+      matchLive = true;
+      closeMenu();
+    },
+    snapshot: (forSpectators) => {
+      const buf = forSpectators ? NET.specEvents : NET.events;
+      const s = snapshot(buf.splice(0));
+      return s;
+    },
+    apply: (s) => applySnapshot(s),
+    get over() { return state.over; },
+    // back to offline play and the select screen
+    leave() {
+      NET.mode = "offline";
+      NET.me = "p1";
+      NET.onRoundOver = NET.sendInput = NET.tick = null;
+      reset();
+      syncSkillButtons();
+      matchLive = false;
+      openMenu();
+    },
+    pause() { menuOpen = true; },
+  };
   syncSkillButtons();
   const status = document.getElementById("status");
   loadImages()

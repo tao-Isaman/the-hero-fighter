@@ -279,6 +279,72 @@
   .sk2 { right: 90px; bottom: 76px; }
   .sk3 { right: 24px; bottom: 106px; }
 
+  /* home + online screens */
+  #home, #online {
+    position: fixed; inset: 0; z-index: 7; display: grid; place-items: center; padding: 16px;
+    background: radial-gradient(120% 90% at 50% 0%, rgba(58, 34, 64, 0.95), rgba(10, 6, 18, 0.97) 70%);
+  }
+  #home[hidden], #online[hidden] { display: none; }
+  .home-panel { display: grid; gap: 12px; justify-items: center; text-align: center; width: min(100%, 420px); }
+  .home-panel h1 { margin: 0; font-size: clamp(2.4rem, 8vw, 3.6rem); color: var(--gold); font-weight: 800; line-height: 1; }
+  .home-panel h1 span { display: block; font-family: var(--font-pixel); font-size: 0.9rem; color: var(--muted); margin-top: 6px; letter-spacing: 0.2em; }
+  .home-panel p { margin: 0 0 8px; color: var(--paper); }
+  .home-panel .pick-done { width: 100%; font-size: 1.15rem; padding: 12px 18px; }
+  .home-panel small { color: var(--muted); line-height: 1.5; }
+  .pick-done.alt { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+  .on-panel { width: min(100%, 860px); }
+  .on-form { display: flex; gap: 8px; flex-wrap: wrap; }
+  .on-input {
+    flex: 1 1 180px; min-width: 0; font: inherit; font-size: 1rem; padding: 10px 12px; border-radius: 10px;
+    border: 2px solid var(--dusk); background: var(--night); color: var(--paper);
+  }
+  .on-input.code { flex: 0 1 140px; font-family: var(--font-pixel); text-transform: uppercase; letter-spacing: 0.2em; }
+  .on-input:focus { outline: none; border-color: var(--gold); }
+  .on-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .on-acts .pick-done { flex: 1 1 200px; }
+  .on-err { margin: 0; color: var(--ember); }
+  .on-rooms { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+  .on-room {
+    display: grid; grid-template-columns: auto 1fr auto auto auto; gap: 10px; align-items: center;
+    padding: 8px 10px; border-radius: 10px; border: 2px solid var(--dusk); background: var(--night);
+  }
+  .on-room b { font-family: var(--font-pixel); color: var(--gold); }
+  .on-room span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .on-room i { font-style: normal; font-size: 0.8rem; color: var(--muted); }
+  .on-room i.playing { color: var(--ember); }
+  .on-room .sel-back { padding: 4px 12px; font-size: 0.9rem; }
+  .on-empty { color: var(--muted); }
+  .on-seats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .on-seat {
+    position: relative; display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 10px;
+    border: 2px solid var(--dusk); background: var(--night); min-height: 64px;
+  }
+  .on-seat.me { border-color: var(--gold); }
+  .on-seat canvas { width: 48px; height: 48px; image-rendering: pixelated; border: 2px solid var(--dusk); }
+  .on-seat div { display: grid; min-width: 0; }
+  .on-seat b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .on-seat span { color: var(--muted); font-size: 0.85rem; }
+  .on-seat em { margin-left: auto; font-style: normal; font-family: var(--font-pixel); font-size: 1.4rem; color: var(--gold); }
+  .on-seat .ready { position: absolute; top: -9px; right: 10px; font-style: normal; font-size: 0.75rem; background: var(--gold); color: var(--night); padding: 1px 8px; border-radius: 999px; }
+  .on-link { margin: 0; color: var(--muted); font-size: 0.85rem; }
+  .on-chars { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 8px; }
+  .on-chars .char { padding: 6px 4px; font-size: 0.8rem; gap: 4px; line-height: 1.25; height: 100%; align-content: start; }
+  .on-chars .char canvas { width: 48px; height: 48px; border-color: var(--dusk); }
+  .on-chars .char.on canvas { border-color: var(--gold); }
+  .on-chars li { display: flex; }
+  #netbar {
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; gap: 10px; align-items: center;
+    padding: 4px 6px 4px 14px; border-radius: 999px; background: rgba(18, 13, 28, 0.82); border: 1px solid var(--dusk);
+    color: var(--paper); font-size: 0.85rem; white-space: nowrap; max-width: calc(100% - 32px);
+  }
+  #netbar[hidden] { display: none; }
+  #netbar span { overflow: hidden; text-overflow: ellipsis; }
+  #netbar button { font: inherit; padding: 2px 12px; border-radius: 999px; border: 1px solid var(--dusk); background: transparent; color: var(--paper); cursor: pointer; }
+  @media (max-height: 480px) {
+    .on-panel { padding: 10px 12px; gap: 8px; }
+    .on-seats { gap: 6px; }
+  }
+
   /* skill picker */
   #picker {
     position: fixed;
@@ -578,11 +644,31 @@
       </section>
     </div>
     <div class="sel-foot">
+      <button class="sel-back" type="button" data-home>หน้าแรก</button>
       <button class="sel-back" type="button" hidden>กลับเข้าเกม</button>
       <button class="pick-done sel-start" type="button">ถัดไป: เลือกสกิล</button>
     </div>
   </div>
 </div>
+
+<!-- first screen: vs CPU or online -->
+<div id="home">
+  <div class="home-panel">
+    <h1>คมแฝก <span>KOM FAEK</span></h1>
+    <p>ศึกฮีโร่ไทย · สู้ 1 ต่อ 1</p>
+    <button id="home-cpu" class="pick-done" type="button">เล่นกับ CPU</button>
+    <button id="home-online" class="pick-done alt" type="button">เล่นออนไลน์</button>
+    <small>ออนไลน์: จับคู่ด่วน สร้างห้องเล่นกับเพื่อน หรือเข้าไปดูการแข่ง · แข่ง 2 ใน 3 ยก</small>
+  </div>
+</div>
+
+<!-- online: login, lobby, room, between rounds (filled in by online.js) -->
+<div id="online" hidden>
+  <div class="pick-panel on-panel" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- over an online fight: names, score, round, connection -->
+<div id="netbar" hidden><span></span><button type="button">ออก</button></div>
 
 <div id="rotate" role="status">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
@@ -607,6 +693,8 @@
 </script>
 <script src="sfx.js"></script>
 <script src="game.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="online.js"></script>
 <script>
   // Installable app + offline play (skipped where service workers aren't allowed, e.g. sandboxed previews)
   if ("serviceWorker" in navigator && window.isSecureContext && window.top === window) {
