@@ -340,6 +340,12 @@
   .home-row .install { border-color: var(--gold); color: var(--gold); }
   .install-help { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--night); border: 1px solid var(--gold); color: var(--paper); font-size: 0.9rem; line-height: 1.5; }
   .install-help[hidden] { display: none; }
+  #music-btn { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); z-index: 60;
+    width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--dusk); background: var(--night); color: var(--gold);
+    font-size: 1rem; line-height: 1; cursor: pointer; }
+  #online .pick-head { padding-right: 34px; }   /* room for the ♪ button */
+  #music-btn.off { color: var(--muted); text-decoration: line-through; opacity: 0.7; }
+  #music-btn[hidden] { display: none; }
   .home-panel.helping > small, .home-panel.helping > p:not(.install-help) { display: none; }   /* room for the steps on phones */
   .on-me { margin: 0; color: var(--gold); font-size: 0.95rem; }
   .on-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -729,6 +735,8 @@
 </div>
 
 <!-- first screen: vs CPU or online -->
+<button id="music-btn" type="button" aria-label="เปิด/ปิดเพลง" hidden>♪</button>
+
 <div id="home">
   <div class="home-panel">
     <h1>mFighter <span>M-FIGHTER</span></h1>
@@ -779,6 +787,7 @@
 <script src="game.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="online.js"></script>
+<script src="music.js"></script>
 <script>
   // Installable app + offline play (skipped where service workers aren't allowed, e.g. sandboxed previews)
   if ("serviceWorker" in navigator && window.isSecureContext && window.top === window) {

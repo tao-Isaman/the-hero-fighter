@@ -230,5 +230,6 @@ window.MANIFEST = {
    "frameH": 158,
    "frames": 9
   }
- }
+ },
+ "music": []
 };
