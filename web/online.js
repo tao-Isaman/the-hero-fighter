@@ -82,7 +82,7 @@
     b.addEventListener("click", onClick);
     return b;
   }
-  function errorLine(msg) { const p = el("p", "on-err", msg); panel.append(p); return p; }
+  function errorLine(msg) { window.SFX?.ui?.("error"); const p = el("p", "on-err", msg); panel.append(p); return p; }
 
   // home: the first thing every visit shows
   $("#home-cpu").addEventListener("click", () => { track("screen", { name: "cpu" }); show("offline"); charsel.hidden = false; charsel.querySelector(".sel-start")?.focus(); });
@@ -358,7 +358,8 @@
     const between = room.phase === "between";
     const result = room.phase === "result";
     const waiting = !room.present[otherSeat()];
-    if (room.mm && waiting && room.phase === "lobby") return renderSearching();
+    if (room.mm && waiting && room.phase === "lobby") { room.wasSearching = true; return renderSearching(); }
+    if (room.wasSearching || (room.bot && !room.foundSfx)) { room.wasSearching = false; room.foundSfx = true; window.SFX?.ui?.("found"); }
     const title = result ? resultTitle() : between ? `ยกที่ ${room.round + 1}` : room.bot ? "ดวลกับบอท" : room.mm ? "พบคู่ต่อสู้!" : `ห้อง ${room.code}`;
     const note = result ? "" : between ? "เลือกสกิลใหม่ได้ก่อนยกถัดไป" : waiting ? "ส่งรหัสห้องให้เพื่อนเพื่อเข้ามาเล่น"
       : room.bot ? `${room.bot.style} · ไม่นับคะแนน` : "เลือกตัวละครและสกิล แล้วกดพร้อม";
@@ -808,6 +809,15 @@
   }
   function netbarText(t) { netbar.hidden = false; $("#netbar span").textContent = t; }
   $("#netbar button").addEventListener("click", () => { leaveRoom(true); lobby(); });
+
+  // menu sounds for every button on the menu screens (home, online, select, skills)
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest?.("button");
+    if (!b || b.disabled || !b.closest("#home, #online, #charsel, #picker")) return;
+    const kind = b.closest(".on-tabs, .pick-tabs") ? "tab" : b.classList.contains("char") ? "select" : b.classList.contains("pick") ? "pick"
+      : b.classList.contains("pick-done") ? "confirm" : /ยกเลิก|ออก|หน้าแรก|กลับ/.test(b.textContent) ? "back" : "click";
+    window.SFX?.ui?.(kind);
+  }, true);
 
   // start on the home screen
   show("home");

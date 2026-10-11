@@ -303,6 +303,46 @@
       tone(t, { f0: 160, f1: 50, dur: 0.1, gain: 0.7, drive: true });
     },
 
+    // menu sounds: small wooden ticks and ranat-like plucks
+    ui(kind = "click") {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      const pluck = (dt, f, g = 0.16, dur = 0.28) => {
+        tone(t + dt, { type: "sine", f0: f, dur, gain: g, wet: 0.25 });
+        tone(t + dt, { type: "sine", f0: f * 3.93, dur: dur * 0.3, gain: g * 0.25 });
+      };
+      switch (kind) {
+        case "tab": tone(t, { type: "triangle", f0: 1100, f1: 1300, dur: 0.05, gain: 0.1 }); break;
+        case "select": pluck(0, 784); break;
+        case "pick": pluck(0, 659, 0.13, 0.2); pluck(0.06, 988, 0.13, 0.25); break;
+        case "confirm": pluck(0, 587, 0.14, 0.2); pluck(0.07, 880, 0.14, 0.2); pluck(0.14, 1175, 0.16, 0.4); break;
+        case "back": pluck(0, 784, 0.1, 0.15); pluck(0.06, 587, 0.1, 0.2); break;
+        case "found":
+          for (const [i, f] of [587, 740, 880, 1175].entries()) pluck(i * 0.08, f, 0.16, 0.35);
+          tone(t + 0.32, { type: "sine", f0: 147, dur: 1.4, gain: 0.25, attack: 0.01, wet: 0.6 });
+          tone(t + 0.32, { type: "sine", f0: 147 * 2.76, dur: 0.8, gain: 0.08, attack: 0.01, wet: 0.6 });
+          break;
+        case "error": tone(t, { type: "square", f0: 190, f1: 150, dur: 0.16, gain: 0.08 }); break;
+        default: tone(t, { type: "triangle", f0: 1500, f1: 900, dur: 0.04, gain: 0.12 }); noise(t, { type: "highpass", f0: 3000, dur: 0.015, gain: 0.08 });
+      }
+    },
+
+    // after the K.O.: a bright pentatonic run for the winner, a falling phrase for the loser
+    jingle(win = true) {
+      if (!ready()) return;
+      const t = ctx.currentTime;
+      const notes = win ? [587, 659, 740, 880, 988, 1175, 1480, 1760] : [659, 587, 494, 440, 392, 330];
+      const gap = win ? 0.07 : 0.16;
+      notes.forEach((f, i) => {
+        tone(t + i * gap, { type: "sine", f0: f, dur: win ? 0.3 : 0.5, gain: 0.18, wet: 0.35 });
+        tone(t + i * gap, { type: "sine", f0: f * 3.93, dur: 0.1, gain: 0.04 });
+      });
+      const end = t + notes.length * gap;
+      const chord = win ? [587, 740, 880, 1175] : [220, 262, 330];
+      for (const f of chord) tone(end, { type: win ? "triangle" : "sine", f0: f, dur: 1.4, gain: 0.1, attack: 0.01, wet: 0.5 });
+      tone(end, { type: "sine", f0: win ? 147 : 110, dur: 2, gain: 0.25, attack: 0.01, wet: 0.7 });   // gong
+    },
+
     // boxing ring bell
     bell(times = 1) {
       if (!ready()) return;

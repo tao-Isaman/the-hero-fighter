@@ -334,7 +334,9 @@
     const list = M.backgrounds && M.backgrounds.length ? M.backgrounds : [M.background];
     return list[Math.floor(Math.random() * list.length)];
   }
+  let jingled = false;              // the win / lose tune played for this round (state is replaced by snapshots online)
   function reset(cfg) {
+    jingled = false;
     // cfg (online): { p1: {kit, loadout, name}, p2: {...}, stage }; the host plays p1, the guest p2
     // bot mode: this screen plays p1, a bot persona (cfg.p2.ai) runs p2 right here
     const local = NET.mode === "host" || NET.mode === "bot";
@@ -2292,6 +2294,7 @@
       ctx.fillStyle = "rgba(18, 13, 28, 0.45)";
       ctx.fillRect(0, 0, W, H);
       const won = state.winner === meF();
+      if (!jingled) { jingled = true; window.SFX?.jingle?.(NET.mode === "spectate" || won); }   // this screen only, never relayed
       if (NET.mode === "spectate") drawCenterText((state.winner && state.winner.tag) || "K.O.", "WINS", "#ffd23f");
       else drawCenterText(won ? "YOU WIN" : "YOU LOSE", NET.mode === "offline" ? "K.O.  ·  R = REMATCH" : "K.O.", won ? "#ffd23f" : "#e4483f");
     } else if (state.over) {

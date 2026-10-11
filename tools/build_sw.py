@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 WEB = Path(__file__).resolve().parent.parent / "web"
-SKIP_DIRS = {"_template", "music"}   # music streams from the network (too big to precache)
+SKIP_DIRS = {"_template", "music", "fightmusic"}   # music streams from the network (too big to precache)
 SKIP_FILES = {"sw.js", "README.md"}
 
 files, h = [], hashlib.sha1()
