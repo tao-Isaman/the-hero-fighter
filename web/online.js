@@ -12,6 +12,29 @@
   const ICE = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }];
   const SNAP_P2P = 1 / 30, SNAP_RELAY = 1 / 15, SNAP_SPEC = 1 / 10;   // seconds between snapshots
   const WINS = 2;                                                       // best of 3
+  const BOT_WAIT = 20;                                                  // seconds of searching before a bot steps in
+
+  // ---------- bots: always "online", they run in this browser (no server) ----------
+  // Each persona plays differently. Sets against bots are labeled BOT and never rated.
+  // ai: see newFighter in game.js (react = reaction time range, the rest are chances 0..1)
+  const BOTS = [
+    { id: "rush", name: "BOT ไอ้หนุ่มสายบุก", style: "บุกไม่ยั้ง กระโดดเข้าหาบ่อย",
+      ai: { react: [0.14, 0.24], aggression: 0.88, jumpIn: 0.3, skillUse: 0.35, flee: 0.12, counterUse: 0.4, ultHp: 0.7, idle: 0.03, whiff: 0.15, lowHpRun: 0, walkBack: 0.2 } },
+    { id: "guard", name: "BOT น้าเฒ่าสายรับ", style: "รอสวนกลับ ถอยเก่ง",
+      ai: { react: [0.16, 0.28], aggression: 0.5, jumpIn: 0.08, skillUse: 0.25, flee: 0.45, counterUse: 0.9, ultHp: 0.5, idle: 0.08, whiff: 0.05, lowHpRun: 0.6, walkBack: 0.75 } },
+    { id: "rookie", name: "BOT น้องใหม่หัดเล่น", style: "กดสกิลรัว ตอบสนองช้า",
+      ai: { react: [0.3, 0.5], aggression: 0.55, jumpIn: 0.2, skillUse: 0.55, flee: 0.15, counterUse: 0.2, ultHp: 1, idle: 0.15, whiff: 0.4, lowHpRun: 0, walkBack: 0.5 } },
+    { id: "zoner", name: "BOT ยิงไกลไม่ให้เข้า", style: "ใช้สกิลคุมระยะ ไม่ค่อยเข้าใกล้",
+      ai: { react: [0.18, 0.3], aggression: 0.6, jumpIn: 0.05, skillUse: 0.6, flee: 0.4, counterUse: 0.6, ultHp: 0.6, idle: 0.05, whiff: 0.1, lowHpRun: 0.4, walkBack: 0.7 } },
+    { id: "pro", name: "BOT จอมเก๋า", style: "เล่นครบเครื่อง อ่านเกมไว",
+      ai: { react: [0.12, 0.22], aggression: 0.78, jumpIn: 0.2, skillUse: 0.32, flee: 0.3, counterUse: 0.75, ultHp: 0.55, idle: 0.02, whiff: 0.04, lowHpRun: 0.4, walkBack: 0.5 } },
+  ];
+  const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+  const shuffled = (a) => a.map((v) => [Math.random(), v]).sort((x, y) => x[0] - y[0]).map((x) => x[1]);
+  function botLoadout(kit) {
+    const sk = G.skills(kit);
+    return [...shuffled(sk.normals).slice(0, 2).map((x) => x.id), pickOne(sk.ults).id];
+  }
 
   const G = window.MFighterNet;
   const NET = G.NET;
@@ -131,7 +154,7 @@
     const showMine = () => { if (myRating) mine.textContent = myRating.matches ? `คะแนน ${myRating.rating} · อันดับ ${myRating.rank} · ชนะ ${myRating.wins} แพ้ ${myRating.losses}` : `คะแนนเริ่มต้น ${myRating.rating} · ชนะเกมออนไลน์เพื่อขึ้นอันดับ`; };
     if (myRating) showMine();
     else rpc("mf_hello", { p_player: player.id, p_name: player.name }).then((r) => { myRating = r; showMine(); }).catch(() => {});
-    const pane = tabs(p, ["เล่น", "ดูการแข่ง"], lobbyTab, (i) => { lobbyTab = i; lobby(); });
+    const pane = tabs(p, ["เล่น", "บอท", "ดูการแข่ง"], lobbyTab, (i) => { lobbyTab = i; lobby(); });
     if (lobbyTab === 0) {
       const quick = button("จับคู่ด่วน", "pick-done big", () => run(quick, quickMatch));
       quick.append(el("small", null, "หาคู่ต่อสู้ที่คะแนนใกล้เคียงให้อัตโนมัติ"));
@@ -153,6 +176,17 @@
       });
       friends.append(create, join);
       pane.append(quick, friends);
+    } else if (lobbyTab === 1) {
+      pane.append(el("p", "on-note", "บอทออนไลน์ตลอด · ซ้อมมือได้เลย ไม่นับคะแนน"));
+      const list = el("ul", "on-bots");
+      for (const bot of BOTS) {
+        const li = el("li");
+        const who = el("span");
+        who.append(el("b", null, bot.name), el("small", null, bot.style));
+        li.append(el("i", "on-dot"), who, button("ท้าดวล", "sel-back", () => { track("online", { action: "bot", room: bot.id }); startBot(bot); }));
+        list.append(li);
+      }
+      pane.append(list);
     } else {
       const list = pager(pane, [], roomRow, "ยังไม่มีการแข่งตอนนี้");
       const refresh = async () => {
@@ -202,6 +236,8 @@
         } catch (_) { /* try again next time */ }
       }
       if (secs % 30 === 29) rpc("mf_touch", { p_id: r.id, p_token: r.token }).catch(() => {});
+      // nobody around: a bot takes the seat (closest rating first, like a real match)
+      if (secs >= BOT_WAIT && room === r && !r.present.guest) { track("online", { action: "bot", room: "auto" }); startBot(pickOne(BOTS)); }
     }, 1000);
   }
 
@@ -232,6 +268,43 @@
     room.heartbeat = setInterval(() => rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: room.phase === "lobby" ? "waiting" : "playing" }).catch(() => {}), 60000);
     if (room.mm && room.role === "host") startSearching();
     renderRoom();
+  }
+
+  // a room with a bot in the guest seat: no channel, no server, the fight runs here
+  function startBot(bot) {
+    clearInterval(lobbyTimer);
+    leaveRoom(true);
+    room = blankRoom({ id: null, token: null, code: "BOT", role: "host" });
+    room.mm = true;
+    room.bot = bot;
+    room.link = "bot";
+    room.names.host = player.name;
+    room.names.guest = bot.name;
+    room.present = { host: true, guest: true };
+    const roster = G.roster();
+    const last = (() => { try { return JSON.parse(localStorage.getItem("mfighter.onlinePick") || "null"); } catch (_) { return null; } })();
+    const kit = last && roster.some((c) => c.id === last) ? last : roster[0].id;
+    room.picks.host = { kit, loadout: G.skills(kit).loadout, ready: false };
+    track("screen", { name: "room" });
+    botPick(false);
+    renderRoom();
+  }
+  // the bot takes a moment to choose, like a person would
+  function botPick(between) {
+    const r = room;
+    const later = (ms, fn) => setTimeout(() => { if (room === r && (r.phase === "lobby" || r.phase === "between")) fn(); }, ms);
+    if (!between || Math.random() < 0.35) {
+      later(between ? 800 : 1200 + Math.random() * 1500, () => {
+        const kit = between ? r.picks.guest.kit : pickOne(G.roster()).id;
+        r.picks.guest = { kit, loadout: botLoadout(kit), ready: false };
+        renderRoom();
+      });
+    }
+    later((between ? 2000 : 3500) + Math.random() * 3000, () => {
+      if (!r.picks.guest) { botPick(between); return; }
+      r.picks.guest.ready = true;
+      renderRoom(); maybeStart();
+    });
   }
 
   function joinChannel() {
@@ -297,8 +370,9 @@
     const result = room.phase === "result";
     const waiting = !room.present[otherSeat()];
     if (room.mm && waiting && room.phase === "lobby") return renderSearching();
-    const title = result ? resultTitle() : between ? `ยกที่ ${room.round + 1}` : room.mm ? "พบคู่ต่อสู้!" : `ห้อง ${room.code}`;
-    const note = result ? "" : between ? "เลือกสกิลใหม่ได้ก่อนยกถัดไป" : waiting ? "ส่งรหัสห้องให้เพื่อนเพื่อเข้ามาเล่น" : "เลือกตัวละครและสกิล แล้วกดพร้อม";
+    const title = result ? resultTitle() : between ? `ยกที่ ${room.round + 1}` : room.bot ? "ดวลกับบอท" : room.mm ? "พบคู่ต่อสู้!" : `ห้อง ${room.code}`;
+    const note = result ? "" : between ? "เลือกสกิลใหม่ได้ก่อนยกถัดไป" : waiting ? "ส่งรหัสห้องให้เพื่อนเพื่อเข้ามาเล่น"
+      : room.bot ? `${room.bot.style} · ไม่นับคะแนน` : "เลือกตัวละครและสกิล แล้วกดพร้อม";
     const p = screen(title, note);
     const seats = el("div", "on-seats");
     for (const seat of ["host", "guest"]) {
@@ -308,7 +382,7 @@
       if (here && pick) s.append(G.portrait(pick.kit, 48));
       const info = el("div");
       info.append(el("b", null, here ? room.names[seat] || "…" : "ว่าง"));
-      info.append(el("span", null, here && pick ? window.CHARACTERS[pick.kit].name : seat === "guest" ? "รอผู้เล่น" : ""));
+      info.append(el("span", null, here && pick ? window.CHARACTERS[pick.kit].name : room.bot ? "กำลังเลือก…" : seat === "guest" ? "รอผู้เล่น" : ""));
       s.append(info, el("em", null, String(room.score[seat === "host" ? "p1" : "p2"])));
       if (here && pick && pick.ready && !result) s.append(el("i", "ready", "พร้อม"));
       seats.append(s);
@@ -317,7 +391,7 @@
     if (result) {
       const rt = room.rated;
       const won = room.score[room.role === "host" ? "p1" : "p2"] >= WINS;
-      p.append(el("p", "on-me", !rt || rt.status === "sending" || rt.status === "pending" ? "กำลังบันทึกผล…"
+      p.append(el("p", "on-me", room.bot ? "เกมกับบอท ไม่นับคะแนน" : !rt || rt.status === "sending" || rt.status === "pending" ? "กำลังบันทึกผล…"
         : rt.status === "confirmed" ? `คะแนน ${won ? "+" : "−"}${rt.delta}` : rt.status === "disputed" ? "ผลไม่ตรงกัน เกมนี้ไม่นับคะแนน" : "บันทึกผลไม่สำเร็จ"));
       const again = room.mm ? button("หาคู่ใหม่", "pick-done", () => { leaveRoom(true); run(again, quickMatch); }) : button("แข่งอีกครั้ง", "pick-done", rematch);
       p.append(footer([again, button("ออกจากห้อง", "sel-back", () => { leaveRoom(); lobby(); })]));
@@ -342,6 +416,7 @@
         b.addEventListener("click", () => {
           if (mine.ready) return;
           room.picks[mySeat()] = { kit: c.id, loadout: G.skills(c.id).loadout, ready: false };
+          try { localStorage.setItem("mfighter.onlinePick", JSON.stringify(c.id)); } catch (_) { /* ignore */ }
           goTab("skills");
           sendPick(); renderRoom();
         });
@@ -387,7 +462,7 @@
   function renderSearching() {
     const p = screen("กำลังหาคู่ต่อสู้…", "จะจับคู่กับผู้เล่นที่คะแนนใกล้เคียงที่สุด");
     const box = el("div", "on-search");
-    box.append(el("b", null, "0:00"), el("span", null, myRating ? `คะแนนของคุณ ${myRating.rating}` : ""));
+    box.append(el("b", null, "0:00"), el("span", null, (myRating ? `คะแนนของคุณ ${myRating.rating} · ` : "") + `ถ้าไม่เจอผู้เล่นใน ${BOT_WAIT} วิ จะจับคู่กับบอท`));
     p.append(box, footer([button("ยกเลิก", "sel-back", () => { leaveRoom(true); lobby(); })]));
   }
   function resultTitle() {
@@ -425,7 +500,11 @@
     room.picks.host.ready = false;
     if (room.picks.guest) room.picks.guest.ready = false;
     show("none");
-    if (room.role === "host") {
+    if (room.bot) {
+      G.start({ ...cfg, mode: "bot", me: "p1", p2: { ...cfg.p2, ai: room.bot.ai } });
+      if (cfg.round === 0) track("match_start", { mode: "bot", bot: room.bot.id, p1_kit: cfg.p1.kit, p2_kit: cfg.p2.kit, p1_loadout: cfg.p1.loadout, p2_loadout: cfg.p2.loadout });
+      NET.onRoundOver = (side) => hostRoundOver(side);
+    } else if (room.role === "host") {
       G.start({ ...cfg, mode: "host", me: "p1" });
       if (cfg.round === 0) track("match_start", { mode: "online", p1_kit: cfg.p1.kit, p2_kit: cfg.p2.kit, p1_loadout: cfg.p1.loadout, p2_loadout: cfg.p2.loadout });
       NET.onRoundOver = (side) => hostRoundOver(side);
@@ -452,6 +531,12 @@
     updateNetbar();
     if (room.role === "spec") return;
     NET.tick = null;
+    if (room.bot) {
+      if (p.setOver) track("match_end", { mode: "bot", bot: room.bot.id, winner: p.winner, score: room.score, p1_kit: room.picks.host?.kit, p2_kit: room.picks.guest?.kit, rated: false });
+      else botPick(true);
+      renderRoom();
+      return;
+    }
     if (p.setOver) reportSet(p.winner);
     if (room.role === "host" && p.setOver) rpc("mf_set_status", { p_id: room.id, p_token: room.token, p_status: "waiting" }).catch(() => {});
     renderRoom();
@@ -600,6 +685,7 @@
     room.link = "none";
   }
   function linkText() {
+    if (room.bot) return "สถานะ: เล่นกับบอท (ไม่นับคะแนน)";
     if (!room.present[otherSeat()]) return "สถานะ: รอคู่ต่อสู้";
     return room.link === "p2p" ? "สถานะ: เชื่อมต่อตรง (P2P)" : room.link === "relay" ? "สถานะ: เชื่อมต่อผ่านเซิร์ฟเวอร์ (หน่วงกว่าเล็กน้อย)" : "สถานะ: กำลังเชื่อมต่อ…";
   }
@@ -728,7 +814,7 @@
     if (!room || NET.mode === "offline" && room.role !== "spec") { netbar.hidden = true; return; }
     netbar.hidden = false;
     const n = room.names;
-    const tail = room.role === "spec" ? `ผู้ชม ${room.specs}` : room.link === "p2p" ? "P2P" : room.link === "relay" ? "RELAY" : "…";
+    const tail = room.role === "spec" ? `ผู้ชม ${room.specs}` : room.bot ? "BOT" : room.link === "p2p" ? "P2P" : room.link === "relay" ? "RELAY" : "…";
     netbarText(`${n.host || "?"}  ${room.score.p1} - ${room.score.p2}  ${n.guest || "?"}  ·  ยก ${room.round + 1}  ·  ${tail}`);
   }
   function netbarText(t) { netbar.hidden = false; $("#netbar span").textContent = t; }

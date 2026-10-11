@@ -325,7 +325,8 @@
       comboCount: 0, comboTimer: 0,
       stats: { dmg: 0, hits: 0, crits: 0, skills: {} },   // for activity tracking (track.js)
       input: ctrl === "human" ? { keys, pressed } : ctrl === "remote" ? NET.remote : { keys: new Set(), pressed: new Set() },
-      ai: { think: 0.6, plan: null, planT: 0, aggression: 0.7 },
+      // AI style; online bots (online.js) override these with a persona
+      ai: { think: 0.6, plan: null, planT: 0, aggression: 0.7, react: [0.16, 0.32], skillUse: 0.32, jumpIn: 0.15, flee: 0.3, counterUse: 0.6, ultHp: 0.6, idle: 0, whiff: 0, lowHpRun: 0, walkBack: 0.5 },
     };
   }
 
@@ -335,11 +336,14 @@
   }
   function reset(cfg) {
     // cfg (online): { p1: {kit, loadout, name}, p2: {...}, stage }; the host plays p1, the guest p2
-    const p1 = cfg ? newFighter(KITS[cfg.p1.kit], 220, 1, NET.mode === "host" ? "human" : "net", normalizeLoadout(KITS[cfg.p1.kit], cfg.p1.loadout))
+    // bot mode: this screen plays p1, a bot persona (cfg.p2.ai) runs p2 right here
+    const local = NET.mode === "host" || NET.mode === "bot";
+    const p1 = cfg ? newFighter(KITS[cfg.p1.kit], 220, 1, local ? "human" : "net", normalizeLoadout(KITS[cfg.p1.kit], cfg.p1.loadout))
       : newFighter(p1Kit, 220, 1, "human", p1Loadout);
-    const p2 = cfg ? newFighter(KITS[cfg.p2.kit], 470, -1, NET.mode === "host" ? "remote" : "net", normalizeLoadout(KITS[cfg.p2.kit], cfg.p2.loadout))
+    const p2 = cfg ? newFighter(KITS[cfg.p2.kit], 470, -1, cfg.p2.ai ? "ai" : NET.mode === "host" ? "remote" : "net", normalizeLoadout(KITS[cfg.p2.kit], cfg.p2.loadout))
       : newFighter(KITS[P2_ID], 470, -1, "ai", aiLoadout(KITS[P2_ID]));
     if (cfg) { p1.tag = cfg.p1.name; p2.tag = cfg.p2.name; }
+    if (cfg && cfg.p2.ai) Object.assign(p2.ai, cfg.p2.ai);
     p1.opp = p2;
     p2.opp = p1;
     NET.remote.keys.clear();
@@ -1242,25 +1246,32 @@
       .map((id, i) => ({ i, def: f.kit.c.skills[id] }))
       .filter((s) => f.cooldowns[s.i] <= 0 && dist <= skillRange(s.def));
     const counter = ready.find((s) => s.def.counter);
-    if (counter && oppAttacking && dist < 130 && chance(0.6)) { ai.plan = { skill: counter.i }; return; }
+    if (counter && oppAttacking && dist < 130 && chance(ai.counterUse)) { ai.plan = { skill: counter.i }; return; }
     const usable = ready.filter((s) => !s.def.counter);
     const ult = usable.find((s) => s.def.ult);
-    if (ult && (f.hp < f.maxHp * 0.6 || chance(0.25))) { ai.plan = { skill: ult.i }; return; }
-    if (usable.length && chance(0.32)) { ai.plan = { skill: usable[randInt(0, usable.length - 1)].i }; return; }
+    if (ult && (f.hp < f.maxHp * ai.ultHp || chance(0.25))) { ai.plan = { skill: ult.i }; return; }
+    if (usable.length && chance(ai.skillUse)) { ai.plan = { skill: usable[randInt(0, usable.length - 1)].i }; return; }
 
     // being pressured up close: sometimes step out or hop away
-    if (oppAttacking && dist < 110 && chance(0.3)) {
+    // like people do: stand still for a beat, or back off to wait out cooldowns when low
+    if (chance(ai.idle)) { ai.plan = { t: rand(0.25, 0.7) }; return; }
+    if (ai.lowHpRun && f.hp < f.maxHp * 0.3 && dist < 260 && f.cooldowns.some((c) => c > 0) && chance(ai.lowHpRun)) {
+      ai.plan = chance(0.6) ? { move: away, t: rand(0.4, 0.8) } : { jump: true, move: away, t: 0.5 };
+      return;
+    }
+
+    if (oppAttacking && dist < 110 && chance(ai.flee)) {
       ai.plan = chance(0.5) ? { move: away, t: 0.35 } : { jump: true, move: away, t: 0.4 };
       return;
     }
 
     if (dist > reach + 10) {
       // close in; now and then jump in with an air combo
-      ai.plan = dist < 200 && chance(0.15) ? { jump: true, move: toward, t: 0.3, airAttack: true } : { move: toward, t: rand(0.2, 0.45) };
+      ai.plan = dist < 200 && chance(ai.jumpIn) ? { jump: true, move: toward, t: 0.3, airAttack: true } : { move: toward, t: rand(0.2, 0.45) };
     } else if (chance(ai.aggression)) {
-      ai.plan = { attack: randInt(2, f.kit.c.combo.length) };
+      ai.plan = { attack: randInt(chance(ai.whiff) ? 1 : 2, f.kit.c.combo.length) };
     } else {
-      ai.plan = { move: chance(0.5) ? away : null, t: rand(0.2, 0.5) };
+      ai.plan = { move: chance(ai.walkBack) ? away : null, t: rand(0.2, 0.5) };
     }
   }
 
@@ -1273,7 +1284,7 @@
     if (state.over || state.introT > 0 || f.hp <= 0) return;
     ai.think -= dt;
     if (ai.think <= 0) {
-      ai.think = rand(0.16, 0.32);              // reaction time
+      ai.think = rand(ai.react[0], ai.react[1]);   // reaction time
       if (!f.skill && (f.combo < 0 || ai.plan?.attack)) aiThink(f);
     }
     const plan = ai.plan;
@@ -1504,7 +1515,7 @@
       if (NET.mode === "offline") track("match_end", { mode: "cpu", winner: sideOf(state.winner), score: { p1: state.winner === state.p1 ? 1 : 0, p2: state.winner === state.p2 ? 1 : 0 }, p1_kit: state.p1.kit.id, p2_kit: state.p2.kit.id });
     }
     if (state.over && state.overT > 3.2) {
-      if (NET.mode !== "host") { matchLive = false; openMenu(); return; }
+      if (NET.mode === "offline") { matchLive = false; openMenu(); return; }
       if (!state.reported) { state.reported = true; NET.onRoundOver?.(state.winner === state.p1 ? "p1" : "p2"); }
     }
 
@@ -1572,7 +1583,7 @@
   function roundInfo() {
     const a = state.p1, b = state.p2;
     return {
-      mode: NET.mode === "offline" ? "cpu" : "online", round: NET.round || 0, stage: (state.bg || "").split("/").pop().replace(".png", ""),
+      mode: NET.mode === "offline" ? "cpu" : NET.mode === "bot" ? "bot" : "online", round: NET.round || 0, stage: (state.bg || "").split("/").pop().replace(".png", ""),
       secs: Math.round(state.time), winner: sideOf(state.winner), p1_kit: a.kit.id, p2_kit: b.kit.id,
       p1_hp: a.hp, p2_hp: b.hp, p1_dmg: a.stats.dmg, p2_dmg: b.stats.dmg, p1_hits: a.stats.hits, p2_hits: b.stats.hits,
       p1_crits: a.stats.crits, p2_crits: b.stats.crits, p1_skills: a.stats.skills, p2_skills: b.stats.skills,
