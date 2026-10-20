@@ -471,3 +471,465 @@ display RockC { model = "mesh.RockSmall" position = (612, 731, 0) rotation = (0,
 
 object FlowerField1 { model = "scatter.WhiteFlowers" position = (1300, 0, -100) size = (2400, 3600, 400) }
 object FlowerField2 { model = "scatter.YellowFlowers" position = (1300, 0, -100) size = (2400, 3600, 400) }
+
+// ---------- step 3: flower spell ----------
+// Nine flower textures grown from the daisy sketch (reference image 3): same rounded-petal brush shape, varied petal count, width and colour.
+#texture Flower1
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 8.0;
+param plen = 0.44;
+param pwid = 0.085;
+param rot = 0.3;
+param crad = 0.12;
+param base_col = color("#f7f4ea");
+param edge_col = color("#d5dfee");
+param core_col = color("#f6cf27");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower2
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 8.0;
+param plen = 0.44;
+param pwid = 0.09;
+param rot = 0.1;
+param crad = 0.12;
+param base_col = color("#f7b6cf");
+param edge_col = color("#e486ad");
+param core_col = color("#f5c542");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower3
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 5.0;
+param plen = 0.43;
+param pwid = 0.12;
+param rot = 0.6;
+param crad = 0.1;
+param base_col = color("#a9d8ff");
+param edge_col = color("#5fa8ef");
+param core_col = color("#fff1a8");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower4
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 6.0;
+param plen = 0.43;
+param pwid = 0.11;
+param rot = 0.2;
+param crad = 0.12;
+param base_col = color("#ffe375");
+param edge_col = color("#f2b21c");
+param core_col = color("#e07f1f");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower5
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 7.0;
+param plen = 0.44;
+param pwid = 0.1;
+param rot = 0.4;
+param crad = 0.11;
+param base_col = color("#d3c2f7");
+param edge_col = color("#9d82e3");
+param core_col = color("#ffe28a");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower6
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 10.0;
+param plen = 0.44;
+param pwid = 0.07;
+param rot = 0.0;
+param crad = 0.12;
+param base_col = color("#ffd6b0");
+param edge_col = color("#ff9f6e");
+param core_col = color("#f2c94c");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower7
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 12.0;
+param plen = 0.45;
+param pwid = 0.055;
+param rot = 0.15;
+param crad = 0.13;
+param base_col = color("#ffffff");
+param edge_col = color("#e6edf5");
+param core_col = color("#ffc93a");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower8
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 6.0;
+param plen = 0.43;
+param pwid = 0.1;
+param rot = 0.5;
+param crad = 0.11;
+param base_col = color("#ff9eb0");
+param edge_col = color("#e84d6a");
+param core_col = color("#ffe08a");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture Flower9
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+param petals = 9.0;
+param plen = 0.44;
+param pwid = 0.08;
+param rot = 0.25;
+param crad = 0.12;
+param base_col = color("#effae2");
+param edge_col = color("#bfe6a5");
+param core_col = color("#f7d65a");
+let c = vec2(0.5, 0.5);
+let cov = 0.0;
+let pid = 0.0;
+for k in 0..12 {
+  let on = step(k + 0.5, petals);
+  let a = rot + k * 6.2832 / petals + (rand(k * 3.0 + 1.0) - 0.5) * 0.2;
+  let l = plen * (0.88 + 0.14 * rand(k * 7.0 + 2.0));
+  let dir = vec2(cos(a), sin(a));
+  let w = pwid * (0.9 + 0.25 * rand(k * 5.0 + 9.0));
+  let m = fill(sdf.segment(uv, c + dir * 0.06, c + dir * (l - w)) - w * (0.75 + 0.45 * sat(length(uv - c) / l))) * on;
+  let pid = select(pid, rand(k * 11.0 + 5.0), m);
+  let cov = max(cov, m);
+}
+let r = length(uv - c) / plen;
+let streak = noise.fbm(vec2(atan2(uv.y - 0.5, uv.x - 0.5) * 9.0, r * 2.0), octaves: 2, seed: 4);
+let petal_col = mix(base_col, edge_col, sat(0.65 - r * 0.6 + 0.4 * streak)) * (0.93 + 0.1 * pid);
+let core = fill(sdf.circle(uv, c, crad + 0.012 * noise.fbm(uv * 30.0, octaves: 2, seed: 9)));
+let dots = noise.fbm(uv * 60.0, octaves: 1, seed: 2);
+let core_shade = mix(core_col * 0.8, core_col * 1.05, sat(1.0 - length(uv - c - vec2(-0.03, -0.03)) / crad + 0.25 * dots));
+out.color = mix(petal_col, core_shade, core);
+out.alpha = max(cov, core);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture PetalCard
+mapping = uv;
+wrap = clamp;
+render_mode = cutout_twosided;
+size = 128;
+let d = sdf.segment(uv, vec2(0.5, 0.2), vec2(0.5, 0.72)) - 0.2 * (0.55 + 0.45 * sat((uv.y - 0.15) / 0.6));
+let streak = noise.fbm(vec2(uv.x * 14.0, uv.y * 2.0), octaves: 2, seed: 6);
+out.color = mix(color("#ffffff"), color("#e9eef6"), sat(0.3 + 0.5 * streak - 0.4 * uv.y));
+out.alpha = fill(d);
+out.orm = orm(occlusion: 1.0, roughness: 0.85, metallic: 0.0);
+#end
+
+#texture GlowDot
+mapping = uv;
+wrap = clamp;
+size = 64;
+let d = length(uv - vec2(0.5, 0.5));
+out.color = vec3(1.0, 1.0, 1.0) * smoothstep(0.5, 0.0, d);
+out.alpha = smoothstep(0.5, 0.05, d);
+#end
+
+#texture MagicCircle
+mapping = uv;
+wrap = clamp;
+size = 512;
+let c = vec2(0.5, 0.5);
+let p = uv - c;
+let r = length(p);
+let ang = atan2(p.y, p.x) / 6.2832 + 0.5;
+let rings = max(max(stroke(sdf.circle(uv, c, 0.47), 0.014), stroke(sdf.circle(uv, c, 0.405), 0.008)), max(stroke(sdf.circle(uv, c, 0.25), 0.007), stroke(sdf.circle(uv, c, 0.12), 0.006)));
+let cell = floor(ang * 40.0);
+let runes = step(0.25, fract(ang * 40.0)) * step(fract(ang * 40.0), 0.75) * step(0.415, r) * step(r, 0.455) * step(0.35, rand(cell * 3.0 + 1.0));
+let t0 = max(max(stroke(sdf.segment(uv, c + vec2(0.0, 0.40), c + vec2(0.3464, -0.2)), 0.007), stroke(sdf.segment(uv, c + vec2(0.3464, -0.2), c + vec2(-0.3464, -0.2)), 0.007)), stroke(sdf.segment(uv, c + vec2(-0.3464, -0.2), c + vec2(0.0, 0.40)), 0.007));
+let t1 = max(max(stroke(sdf.segment(uv, c + vec2(0.0, -0.40), c + vec2(0.3464, 0.2)), 0.007), stroke(sdf.segment(uv, c + vec2(0.3464, 0.2), c + vec2(-0.3464, 0.2)), 0.007)), stroke(sdf.segment(uv, c + vec2(-0.3464, 0.2), c + vec2(0.0, -0.40)), 0.007));
+let glow = smoothstep(0.5, 0.0, abs(r - 0.44)) * 0.25 * step(r, 0.5);
+let m = sat(max(max(rings, runes), max(t0, t1)) + glow);
+out.color = vec3(0.55, 1.0, 0.6) * m;
+out.alpha = m;
+#end
+
+// Phase 1: green casting circle on the ground + a tube of light rising around the caster + motes from the ground
+#particles CastCircle
+[
+  { "particleTextureName": "texture.MagicCircle.color", "boundingBoxSize": [5, 5, 0.4], "additiveBlend": 1, "orientation": 4, "burstParticleCount": 1, "duration": 0.1, "lifeTimeRange": [7.5, 7.5], "speedRange": [0, 0], "emitterShapeType": "sphere", "radius": 0.01, "sizeSequence": [[0, 0.2], [0.06, 4.6], [1, 4.6]], "opacitySequence": [[0, 0], [0.05, 1], [0.85, 1], [1, 0]], "rotationSpeedRange": [0.35, 0.35], "colorConstant": [0.6, 2.4, 0.9], "emitterPosition": [0, 0, 0.03] },
+  { "particleTextureName": "texture.MagicCircle.color", "boundingBoxSize": [5, 5, 0.4], "additiveBlend": 1, "orientation": 4, "burstParticleCount": 1, "duration": 0.1, "spawnStartDelay": 0.2, "lifeTimeRange": [7.2, 7.2], "speedRange": [0, 0], "emitterShapeType": "sphere", "radius": 0.01, "sizeSequence": [[0, 0.1], [0.06, 2.4], [1, 2.4]], "opacitySequence": [[0, 0], [0.05, 0.8], [0.85, 0.8], [1, 0]], "rotationSpeedRange": [-0.6, -0.6], "colorConstant": [1.4, 2.6, 1.0], "emitterPosition": [0, 0, 0.05] }
+]
+#end
+
+#particles CastLight
+[
+  { "particleTextureName": "texture.GlowDot.color", "boundingBoxSize": [3, 3, 4], "boundingBoxCenter": [0, 0, 2], "additiveBlend": 1, "orientation": 1, "spawnRate": 120, "duration": 3.2, "lifeTimeRange": [0.7, 1.1], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 0.75, "speedRange": [1.8, 3.2], "sizeSequence": [[0, 0.12], [0.3, 0.2], [1, 0.05]], "squashConstant": 4, "opacitySequence": [[0, 0], [0.2, 0.9], [1, 0]], "colorConstant": [0.5, 2.6, 0.9] },
+  { "particleTextureName": "texture.GlowDot.color", "boundingBoxSize": [4, 4, 3], "boundingBoxCenter": [0, 0, 1.5], "additiveBlend": 1, "spawnRate": 45, "duration": 4.5, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "disc", "shapeStyle": "volume", "shapeInOut": "out", "radius": 2.2, "speedRange": [0.3, 0.9], "accelerationVector": [0, 0, 0.6], "turbulenceStrength": 0.8, "sizeSequence": [[0, 0.06], [0.5, 0.12], [1, 0.03]], "opacitySequence": [[0, 0], [0.25, 1], [1, 0]], "colorConstant": [1.2, 2.4, 1.0] }
+]
+#end
+
+#particles FlowerWave
+[
+  { "particleTextureName": "texture.Flower1.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 7, "duration": 0.1, "spawnStartDelay": 0.0, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 0.9, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower2.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 10, "duration": 0.1, "spawnStartDelay": 0.14, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 1.4, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower3.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 13, "duration": 0.1, "spawnStartDelay": 0.28, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 1.9, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower4.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 16, "duration": 0.1, "spawnStartDelay": 0.42, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 2.4, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower5.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 19, "duration": 0.1, "spawnStartDelay": 0.56, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 2.9, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower6.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 22, "duration": 0.1, "spawnStartDelay": 0.7, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 3.4, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower7.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 25, "duration": 0.1, "spawnStartDelay": 0.84, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 3.9, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower8.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 28, "duration": 0.1, "spawnStartDelay": 0.98, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 4.4, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 },
+  { "particleTextureName": "texture.Flower9.color", "boundingBoxSize": [11, 11, 1.2], "boundingBoxCenter": [0, 0, 0.3], "orientation": 1, "burstParticleCount": 31, "duration": 0.1, "spawnStartDelay": 1.12, "lifeTimeRange": [4.2, 4.2], "emitterShapeType": "disc", "shapePartial": 0, "radius": 4.9, "speedRange": [0, 0], "emitterPosition": [0, 0, 0.22], "sizeSequence": [[0, 0], [0.05, 0.78], [0.11, 0.42], [0.26, 0.52], [0.4, 0.42], [0.55, 0.52], [0.7, 0.42], [0.9, 0.44], [1, 0]], "opacityConstant": 1 }
+]
+#end
+
+#particles PetalRise
+[
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 28, "duration": 0.1, "spawnStartDelay": 3.78, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 0.9, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 1.0, 1.0] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 40, "duration": 0.1, "spawnStartDelay": 3.92, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 1.4, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 0.75, 0.85] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 52, "duration": 0.1, "spawnStartDelay": 4.06, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 1.9, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [0.7, 0.85, 1.0] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 64, "duration": 0.1, "spawnStartDelay": 4.2, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 2.4, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 0.92, 0.5] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 76, "duration": 0.1, "spawnStartDelay": 4.34, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 2.9, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [0.85, 0.78, 1.0] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 88, "duration": 0.1, "spawnStartDelay": 4.48, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 3.4, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 0.85, 0.7] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 100, "duration": 0.1, "spawnStartDelay": 4.62, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 3.9, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 1.0, 1.0] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 112, "duration": 0.1, "spawnStartDelay": 4.76, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 4.4, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [1.0, 0.65, 0.72] },
+  { "particleTextureName": "texture.PetalCard.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "burstParticleCount": 124, "duration": 0.1, "spawnStartDelay": 4.9, "lifeTimeRange": [1.8, 2.8], "emitterShapeType": "disc", "shapePartial": 0, "shapeInOut": "out", "radius": 4.9, "speedRange": [0.4, 1.3], "spreadAngle": [35, 35], "accelerationVector": [0, 0, 0.7], "drag": 0.9, "turbulenceStrength": 1.6, "turbulenceScale": 0.8, "emitterPosition": [0, 0, 0.25], "rotationRange": [0, 6.28], "rotationSpeedRange": [-3, 3], "sizeSequence": [[0, 0.16], [1, 0.11]], "opacitySequence": [[0, 1], [0.6, 0.9], [1, 0]], "colorConstant": [0.92, 1.0, 0.85] },
+  { "particleTextureName": "texture.GlowDot.color", "boundingBoxSize": [11, 11, 4], "boundingBoxCenter": [0, 0, 1.5], "additiveBlend": 1, "burstParticleCount": 90, "duration": 0.1, "spawnStartDelay": 3.9, "lifeTimeRange": [1.5, 2.5], "emitterShapeType": "disc", "shapeStyle": "volume", "shapeInOut": "out", "radius": 4.8, "speedRange": [0.5, 1.2], "accelerationVector": [0, 0, 0.5], "turbulenceStrength": 1.0, "sizeSequence": [[0, 0.08], [1, 0.02]], "opacitySequence": [[0, 0], [0.2, 1], [1, 0]], "colorConstant": [2.0, 2.2, 1.6] }
+]
+#end
+
+// Spell timeline. Phase 1 (cast): circle, light tube, levitation. Phase 2: flower rings bloom outward and pulse.
+// Phase 3: each ring bursts into petals that drift up and fade. Repeats every CycleFrames; F casts immediately.
+#class FlowerSpell
+var T = 0
+var Base: Position
+var CastAt = 90
+const CycleFrames = 960
+event OnSpawned {
+    Base = GetPosition()
+    forever {
+        T = T + 1
+        if T == CastAt {
+            SpawnEffectWithAutoDestroy(Ori.effect.CastCircle, Position(Base.X, Base.Y, Base.Z + 3))
+            SpawnEffectWithAutoDestroy(Ori.effect.CastLight, Position(Base.X, Base.Y, Base.Z + 200))
+        }
+        if T == CastAt + 100 {
+            SpawnEffectWithAutoDestroy(Ori.effect.FlowerWave, Position(Base.X, Base.Y, Base.Z + 30))
+            SpawnEffectWithAutoDestroy(Ori.effect.PetalRise, Position(Base.X, Base.Y, Base.Z + 150))
+        }
+        var lift = 0
+        if T > CastAt and T < CastAt + 520 {
+            var ramp = (T - CastAt) / 40
+            if ramp > 1 { ramp = 1 }
+            var fall = (CastAt + 520 - T) / 40
+            if fall < ramp { ramp = fall }
+            lift = ramp * (22 + 8 * (T * 4).SinDegree())
+        }
+        if Scene.Mage.Exists() { Scene.Mage.SetPosition(Position(Base.X, Base.Y, Base.Z + lift)) }
+        if T >= CycleFrames { T = 0 }
+    }
+}
+event KeyboardDown[F] {
+    if T > CastAt + 520 or T < CastAt { T = CastAt - 1 }
+}
+#end
+display SpellCenter : FlowerSpell { visible = false position = (1180, -80, 0) }
+
+// ---------- step 2: the caster (Oriverse-generated sprite from the supplied character sheet) ----------
+#sprite ElfMage
+source="Ori.sprite.@taoisaman.elf_mage#1"
+#end
+display Mage { sprite = "ElfMage" size = (1, 190, 190) position = (1180, -80, 0) }
