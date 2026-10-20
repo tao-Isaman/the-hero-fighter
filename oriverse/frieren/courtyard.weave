@@ -790,7 +790,7 @@ out.alpha = smoothstep(0.5, 0.05, d);
 
 #particles DissolveSparkle
 [
-  {"particleTextureName": "texture.GlowDot.color", "boundingBoxSize": [12, 12, 4], "boundingBoxCenter": [0, 0, 2], "additiveBlend": 1, "spawnRate": 240, "duration": 1.7, "lifeTimeRange": [1.0, 1.8], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [10.5, 10.5, 0.2], "speedRange": [0, 0.15], "accelerationVector": [0, 0, 0.7], "turbulenceStrength": 0.8, "emitterPosition": [0, 0, 0.7], "sizeSequence": [[0, 0.06], [1, 0.02]], "opacitySequence": [[0, 0], [0.2, 1], [1, 0]], "colorConstant": [1.5, 1.7, 2.0]}
+  {"particleTextureName": "texture.GlowDot.color", "boundingBoxSize": [12, 12, 4], "boundingBoxCenter": [0, 0, 2], "additiveBlend": 1, "spawnRate": 240, "duration": 1.7, "lifeTimeRange": [1.0, 1.8], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [9.4, 9.4, 0.2], "speedRange": [0, 0.15], "accelerationVector": [0, 0, 0.7], "turbulenceStrength": 0.8, "emitterPosition": [0, 0, 0.7], "sizeSequence": [[0, 0.06], [1, 0.02]], "opacitySequence": [[0, 0], [0.2, 1], [1, 0]], "colorConstant": [1.5, 1.7, 2.0]}
 ]
 #end
 
@@ -862,43 +862,43 @@ event OnSpawned {
             var k = 0
             while k < 6 {
                 var a = 60.000 * k + 23 + RandomNumber(-6, 6)
-                var rr = 100 + RandomNumber(-20, 20)
+                var rr = 88 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump1, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 14 {
             var k = 0
-            while k < 12 {
-                var a = 30.000 * k + 46 + RandomNumber(-6, 6)
-                var rr = 200 + RandomNumber(-20, 20)
+            while k < 11 {
+                var a = 32.727 * k + 46 + RandomNumber(-6, 6)
+                var rr = 176 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump2, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 21 {
             var k = 0
-            while k < 18 {
-                var a = 20.000 * k + 69 + RandomNumber(-6, 6)
-                var rr = 300 + RandomNumber(-20, 20)
+            while k < 16 {
+                var a = 22.500 * k + 69 + RandomNumber(-6, 6)
+                var rr = 264 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump3, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 28 {
             var k = 0
-            while k < 25 {
-                var a = 14.400 * k + 92 + RandomNumber(-6, 6)
-                var rr = 400 + RandomNumber(-20, 20)
+            while k < 22 {
+                var a = 16.364 * k + 92 + RandomNumber(-6, 6)
+                var rr = 352 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump4, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 35 {
             var k = 0
-            while k < 31 {
-                var a = 11.613 * k + 115 + RandomNumber(-6, 6)
-                var rr = 500 + RandomNumber(-20, 20)
+            while k < 27 {
+                var a = 13.333 * k + 115 + RandomNumber(-6, 6)
+                var rr = 440 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump5, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
