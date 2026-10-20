@@ -16,8 +16,8 @@ knob SetGrassRootColor = #2f6b16
 knob SetGrassTipColor = #a8d84a
 knob SetGrassBrightnessVariationPercent = 120
 knob SetGrassSizeVariationPercent = 100
-knob SetGrassHeightMinCm = 22
-knob SetGrassHeightMaxCm = 55
+knob SetGrassHeightMinCm = 20
+knob SetGrassHeightMaxCm = 42
 knob SetGrassWavePeriodCm = 450
 knob SetGrassWindStrengthCm = 5
 knob SetGrassBladeWidthPercent = 150
@@ -748,43 +748,36 @@ out.alpha = smoothstep(0.5, 0.05, d);
 
 #particles FlowerClump0
 [
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 16, "burstParticleCount": 12, "duration": 0.1, "lifeTimeRange": [4.45, 4.7], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.4, 1.4, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.936], [0.065, 0.677], [0.095, 0.72], [0.5, 0.77], [0.9, 0.72], [1, 0.396]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.4, "spawnRate": 76.8, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.4, 1.4, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
+  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 24, "burstParticleCount": 20, "duration": 0.1, "lifeTimeRange": [4.45, 4.7], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.44], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.546], [0.065, 0.395], [0.095, 0.42], [0.5, 0.449], [0.9, 0.42], [1, 0.231]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
+  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.4, "spawnRate": 80.0, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.5], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.12], [1, 0.07]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
 ]
 #end
 
 #particles FlowerClump1
 [
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 13, "burstParticleCount": 9, "duration": 0.1, "lifeTimeRange": [4.65, 4.9], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.949], [0.065, 0.686], [0.095, 0.73], [0.5, 0.781], [0.9, 0.73], [1, 0.402]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.6, "spawnRate": 57.6, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
+  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 24, "burstParticleCount": 20, "duration": 0.1, "lifeTimeRange": [4.65, 4.9], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.44], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.559], [0.065, 0.404], [0.095, 0.43], [0.5, 0.46], [0.9, 0.43], [1, 0.237]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
+  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.6, "spawnRate": 80.0, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.5], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.12], [1, 0.07]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
 ]
 #end
 
 #particles FlowerClump2
 [
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 13, "burstParticleCount": 9, "duration": 0.1, "lifeTimeRange": [4.85, 5.1], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.962], [0.065, 0.696], [0.095, 0.74], [0.5, 0.792], [0.9, 0.74], [1, 0.407]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.8, "spawnRate": 57.6, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
+  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 24, "burstParticleCount": 20, "duration": 0.1, "lifeTimeRange": [4.85, 5.1], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.44], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.572], [0.065, 0.414], [0.095, 0.44], [0.5, 0.471], [0.9, 0.44], [1, 0.242]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
+  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 4.8, "spawnRate": 80.0, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.5], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.12], [1, 0.07]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
 ]
 #end
 
 #particles FlowerClump3
 [
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 13, "burstParticleCount": 9, "duration": 0.1, "lifeTimeRange": [5.05, 5.3], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.975], [0.065, 0.705], [0.095, 0.75], [0.5, 0.802], [0.9, 0.75], [1, 0.413]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 5.0, "spawnRate": 57.6, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
+  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 24, "burstParticleCount": 20, "duration": 0.1, "lifeTimeRange": [5.05, 5.3], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.44], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.585], [0.065, 0.423], [0.095, 0.45], [0.5, 0.481], [0.9, 0.45], [1, 0.247]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
+  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 5.0, "spawnRate": 80.0, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.5], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.12], [1, 0.07]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
 ]
 #end
 
 #particles FlowerClump4
 [
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 13, "burstParticleCount": 9, "duration": 0.1, "lifeTimeRange": [5.25, 5.5], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.988], [0.065, 0.714], [0.095, 0.76], [0.5, 0.813], [0.9, 0.76], [1, 0.418]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 5.2, "spawnRate": 57.6, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
-]
-#end
-
-#particles FlowerClump5
-[
-  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 13, "burstParticleCount": 9, "duration": 0.1, "lifeTimeRange": [5.45, 5.7], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.68], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 1.001], [0.065, 0.724], [0.095, 0.77], [0.5, 0.824], [0.9, 0.77], [1, 0.424]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
-  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 5.4, "spawnRate": 57.6, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.15, 1.15, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.7], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.15], [1, 0.08]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
+  {"particleTextureName": "texture.FlowerAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 3, "framesY": 3, "totalFrames": 9, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "orientation": 4, "softParticleFadeDisabled": 1, "particleCount": 24, "burstParticleCount": 20, "duration": 0.1, "lifeTimeRange": [5.25, 5.5], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0], "emitterPosition": [0, 0, 0.44], "rotationRange": [0, 6.283], "sizeSequence": [[0, 0], [0.035, 0.598], [0.065, 0.432], [0.095, 0.46], [0.5, 0.492], [0.9, 0.46], [1, 0.253]], "opacitySequence": [[0, 0], [0.006, 1], [0.93, 1], [1, 0]], "colorConstant": [0.97, 0.97, 0.97]},
+  {"particleTextureName": "texture.PetalAtlas.color", "boundingBoxSize": [1.6, 1.6, 1], "boundingBoxCenter": [0, 0, 0.5], "framesX": 2, "framesY": 2, "totalFrames": 4, "flipbookAnimationSpeed": 0, "flipbookStartRandom": 1, "softParticleFadeDisabled": 1, "spawnStartDelay": 5.2, "spawnRate": 80.0, "duration": 0.25, "lifeTimeRange": [1.4, 2.4], "emitterShapeType": "box", "shapeStyle": "volume", "boxSize": [1.0, 1.0, 0.12], "speedRange": [0, 0.2], "spreadAngle": [60, 60], "accelerationVector": [0, 0, 0.45], "drag": 1.2, "turbulenceStrength": 1.0, "turbulenceScale": 1.2, "emitterPosition": [0, 0, 0.5], "rotationRange": [0, 6.283], "rotationSpeedRange": [-2.5, 2.5], "sizeSequence": [[0, 0.12], [1, 0.07]], "opacitySequence": [[0, 0], [0.06, 1], [0.55, 0.85], [1, 0]], "colorConstant": [1.12, 1.12, 1.18]}
 ]
 #end
 
@@ -838,7 +831,7 @@ event OnSpawned {
             if ramp > 1 { ramp = 1 }
             var fall = (CastAt + CastFrames + HoldFrames - T) / 40
             if fall < ramp { ramp = fall }
-            lift = ramp * (10 + 4 * (T * 4).SinDegree())
+            lift = ramp * (24 + 6 * (T * 4).SinDegree())
         }
         if Scene.Mage.Exists() { Scene.Mage.SetPosition(Position(Base.X, Base.Y, Base.Z + lift)) }
         if T == CastAt {
@@ -857,49 +850,48 @@ event OnSpawned {
         }
         // flower carpet: one ring of clumps every few frames, centre first
         var since = T - CastAt - CastFrames
-        if since == 0 { Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump0, Position(Base.X, Base.Y, Base.Z + 50))) }
+        if since == 0 {
+            var k = 0
+            while k < 7 {
+                var a = 51.429 * k + 0 + RandomNumber(-6, 6)
+                var rr = 95 + RandomNumber(-20, 20)
+                Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump0, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
+                k = k + 1
+            }
+        }
         if since == 7 {
             var k = 0
-            while k < 6 {
-                var a = 60.000 * k + 23 + RandomNumber(-6, 6)
-                var rr = 88 + RandomNumber(-20, 20)
+            while k < 13 {
+                var a = 27.692 * k + 23 + RandomNumber(-6, 6)
+                var rr = 183 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump1, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 14 {
             var k = 0
-            while k < 11 {
-                var a = 32.727 * k + 46 + RandomNumber(-6, 6)
-                var rr = 176 + RandomNumber(-20, 20)
+            while k < 19 {
+                var a = 18.947 * k + 46 + RandomNumber(-6, 6)
+                var rr = 271 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump2, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 21 {
             var k = 0
-            while k < 16 {
-                var a = 22.500 * k + 69 + RandomNumber(-6, 6)
-                var rr = 264 + RandomNumber(-20, 20)
+            while k < 26 {
+                var a = 13.846 * k + 69 + RandomNumber(-6, 6)
+                var rr = 359 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump3, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
         if since == 28 {
             var k = 0
-            while k < 22 {
-                var a = 16.364 * k + 92 + RandomNumber(-6, 6)
-                var rr = 352 + RandomNumber(-20, 20)
+            while k < 32 {
+                var a = 11.250 * k + 92 + RandomNumber(-6, 6)
+                var rr = 447 + RandomNumber(-20, 20)
                 Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump4, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
-                k = k + 1
-            }
-        }
-        if since == 35 {
-            var k = 0
-            while k < 27 {
-                var a = 13.333 * k + 115 + RandomNumber(-6, 6)
-                var rr = 440 + RandomNumber(-20, 20)
-                Fx.Add(SpawnEffectWithAutoDestroy(Ori.effect.FlowerClump5, Position(Base.X + rr * a.CosDegree(), Base.Y + rr * a.SinDegree(), Base.Z + 50)))
                 k = k + 1
             }
         }
