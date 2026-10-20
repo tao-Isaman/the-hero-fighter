@@ -1,0 +1,473 @@
+#artstyle "stylized hand-painted fantasy MMO village, saturated warm greens, soft painterly shading, chunky cartoon proportions"
+
+// ---------- camera: matches reference image 1 (high 3/4 view, 45 deg down) ----------
+#class player
+event OnSpawned {
+    SetPlayerModeSpectator()
+    SetCameraFixed(Position(0, 0, 950), Position(950, 0, 0), 45)
+}
+#end
+
+// ---------- look knobs ----------
+#adjuster
+section "Grass"
+knob SetGrassRootColor = #2f6b16
+knob SetGrassTipColor = #a8d84a
+knob SetGrassBrightnessVariationPercent = 120
+knob SetGrassSizeVariationPercent = 100
+knob SetGrassHeightMinCm = 22
+knob SetGrassHeightMaxCm = 55
+knob SetGrassWavePeriodCm = 450
+knob SetGrassWindStrengthCm = 5
+knob SetGrassBladeWidthPercent = 150
+section "Light"
+knob SetSunRotation = 250
+knob SetSunTilt = 38
+knob SetSunIntensity = 7
+knob SetSunColor = #ffe2b0
+knob SetSkyLightIntensity = 1.7
+knob SetSkyLightColor = #d6ecff
+knob SetShadowLift = 0.6
+knob SetShadowDistance = 60
+knob SetShadowBlurRadius = 2.5
+knob SetSkyboxCloudCoverage = 0.25
+knob SetSkyboxHaze = 0.6
+knob SetFogStartDistance = 60
+knob SetFogEndDistance = 600
+#end
+
+// ---------- materials ----------
+material WoodWarm { base = "WoodDetail" tint = "#a8763f" }
+material WoodShade { base = "WoodDetail" tint = "#6a4428" }
+material DoorWood { base = "WoodDetail" tint = "#5a3a22" }
+material StoneLight { base = "StoneDetail" tint = "#d9d2c2" }
+material StoneDark { base = "StoneDetail" tint = "#9c968a" }
+material MossStone { base = "StoneDetail" tint = "#a7a99a" }
+material PlasterCream { base = "PlasterDetail" tint = "#f0e3c6" }
+material RoofOrange { base = "WoodDetail" tint = "#d4733a" }
+material RoofSlate { base = "StoneDetail" tint = "#5d6b80" }
+material FabricWhite { base = "FabricDetail" tint = "#f4f3ee" }
+material FabricBlue { base = "FabricDetail" tint = "#3f7fcf" }
+material IronDark { base = "MetalDetail" tint = "#3b3b3b" roughness = 0.7 }
+material BarkWarm { base = "Bark" tint = "#7d5638" }
+#texture GlassBlue color=#3c5872 roughness=0.3
+#texture WaterDark color=#2b4655 roughness=0.15
+#texture PetalWhite color=#fbfbf2 roughness=0.8
+#texture PetalYellow color=#ffd83a roughness=0.8
+#texture PetalHeart color=#f2a922 roughness=0.8
+#texture StemGreen color=#4f8f2a roughness=0.9
+
+// ---------- ground ----------
+#texture GrassGround
+tile_m = 3.0;
+let n = noise.fbm(uv * 6.0, octaves: 4, seed: 7, period: 6);
+let m = noise.fbm(uv * 24.0, octaves: 2, seed: 9, period: 24);
+out.color = mix(color("#4f8f2a"), color("#7fbf3c"), n) * (0.94 + m * 0.1);
+out.height = n * 0.5 + m * 0.5;
+out.normal = normal_from_height(n * 0.4 + m * 0.6, strength: 0.4);
+out.orm = orm(occlusion: 1.0, roughness: 0.95, metallic: 0.0);
+#end
+
+#texture DirtGround
+tile_m = 4.0;
+let n = noise.fbm(uv * 6.0, octaves: 4, seed: 3, period: 6);
+let s = noise.fbm(uv * 24.0, octaves: 2, seed: 11, period: 24);
+out.color = mix(color("#c99f5a"), color("#e8c784"), n) * (0.95 + s * 0.08);
+out.height = n * 0.6 + s * 0.4;
+out.normal = normal_from_height(n * 0.6 + s * 0.4, strength: 0.15);
+out.orm = orm(occlusion: 1.0, roughness: 0.95, metallic: 0.0);
+#end
+
+#terrain_surfaces CourtSurfaces
+surface = baked.GrassGround.color, baked.GrassGround.normal, 3.0, baked.GrassGround.orm, 1.0
+surface = baked.DirtGround.color, baked.DirtGround.normal, 4.0, baked.DirtGround.orm, 0.0
+#end
+
+// Dirt patches: colour-segmented from the reference, contours back-projected to ground meters
+#terrain_paint CourtyardPaint
+surfaces = CourtSurfaces
+palette = [meadow, dirt]
+base = surface=meadow,density=1,height=1
+polygon D0 = outer=[(4.8,4.4),(5.2,5.1),(5.3,5.4),(4.8,5.9),(4.4,6.8),(2.9,6.3),(2.9,4.0),(4.4,4.5),(4.6,4.4)]
+polygon D1 = outer=[(6.4,2.9),(6.1,2.7),(5.5,1.7),(5.5,0.6),(5.8,0.1),(6.0,0.2),(6.1,0.6),(6.5,1.7),(6.9,1.9),(7.0,2.2),(6.8,2.8)]
+polygon D2 = outer=[(9.7,6.5),(10.3,7.5),(10.0,7.7),(10.2,8.0),(9.9,8.2),(9.2,8.2),(9.1,8.7),(8.8,8.7),(8.0,8.2),(7.4,7.9),(7.1,7.0),(7.3,6.5),(8.6,6.3),(9.0,6.5),(9.4,6.4)]
+polygon D3 = outer=[(7.9,0.9),(7.5,0.7),(7.1,0.3),(6.9,-1.1),(6.5,-2.6),(6.2,-3.0),(4.9,-3.7),(4.5,-4.3),(4.2,-4.6),(4.1,-4.9),(2.9,-4.5),(2.9,-7.6),(4.9,-8.8),(5.0,-7.3),(5.2,-7.4),(5.9,-7.1),(6.5,-6.8),(7.1,-5.9),(8.5,-5.2),(9.0,-4.4),(9.3,-4.3),(9.3,-3.7),(9.8,-3.7),(10.3,-3.1),(10.6,-3.0),(10.9,-3.2),(10.8,-3.8),(10.9,-4.0),(11.7,-4.2),(12.0,-4.3),(12.5,-4.1),(12.9,-3.1),(13.3,-2.8),(13.4,-2.2),(13.3,-1.9),(12.6,-1.7),(11.6,-1.0),(11.0,-0.9),(10.2,-0.4),(9.6,-0.4),(9.2,-0.1),(8.8,-0.1)]
+polygon D4 = outer=[(12.4,7.0),(13.2,7.7),(13.5,8.2),(13.3,8.2),(12.6,8.0),(12.6,9.9),(12.9,10.1),(12.8,10.4),(12.3,10.6),(10.7,9.7),(10.6,10.1),(10.2,10.0),(9.8,9.6),(10.2,9.5),(10.1,9.0),(11.0,8.9),(10.6,8.1),(10.5,7.5),(11.0,7.3),(11.7,6.8)]
+polygon D5 = outer=[(13.8,6.5),(13.4,6.3),(12.2,4.7),(12.1,3.4),(12.4,3.1),(13.1,3.0),(13.6,3.1),(13.9,4.5),(14.5,5.2),(14.5,6.2)]
+union Dirt = fields=[D0,D1,D2,D3,D4,D5]
+layer DirtLayer = field=Dirt,surface=dirt,fade=0.35,density_fade=0.3,height_fade=0.5,density=0,height=0
+#end
+
+#terrain Ground
+mound_height_m = 0
+gully_depth_m = 0
+detail Bumps = height=0.2, size=9
+channel Drop = outer=[(20,-8),(90,-8),(90,-90),(20,-90)], level=0, depth=30, bank=4, bed_fade=6
+#end
+
+#class WorldSetup
+event OnSpawned {
+    var terrain = SpawnTerrainRecipe(100, Position(0, 0, 0))
+    terrain.SetTerrainPaint("CourtyardPaint")
+    SetSaturation(1.1)
+    SetWaterEnabled(true)
+    SetWaterSeaLevelCm(-2200)
+    SetContrast(1.08)
+    SetBloomIntensity(0.2)
+    SetVolumetricLightIntensity(35)
+    SetWind(30, 0.25, 0.4)
+    SetSsrOff()
+}
+#end
+display WorldSetupObj : WorldSetup { visible = false }
+
+// ---------- foliage ----------
+#texture LeafClump
+mapping = uv;
+wrap = clamp;
+render_mode = cutout;
+size = 512;
+let cov = 0.0;
+let tone = 0.0;
+for i in 0..14 {
+  let a = i * 2.39996;
+  let r = 0.03 + 0.35 * sqrt((i + 0.5) / 14.0);
+  let c = vec2(0.5 + r * cos(a), 0.56 + r * 0.82 * sin(a));
+  let s = 0.13 + 0.05 * rand(i * 13.0 + 1.0);
+  let rot = 1.2 + rand(i * 7.0 + 3.0) * 1.4;
+  let d0 = vec2(cos(rot), sin(rot));
+  let d1 = vec2(cos(rot + 1.2566), sin(rot + 1.2566));
+  let d2 = vec2(cos(rot + 2.5133), sin(rot + 2.5133));
+  let d3 = vec2(cos(rot + 3.7699), sin(rot + 3.7699));
+  let d4 = vec2(cos(rot + 5.0265), sin(rot + 5.0265));
+  let l0 = fill(sdf.leaf(uv, base: c, tip: c + d0 * s, width: s * 0.55));
+  let l1 = fill(sdf.leaf(uv, base: c, tip: c + d1 * s * 0.85, width: s * 0.48));
+  let l2 = fill(sdf.leaf(uv, base: c, tip: c + d2 * s * 0.5, width: s * 0.34));
+  let l3 = fill(sdf.leaf(uv, base: c, tip: c + d3 * s * 0.5, width: s * 0.34));
+  let l4 = fill(sdf.leaf(uv, base: c, tip: c + d4 * s * 0.85, width: s * 0.48));
+  let hub = fill(sdf.circle(uv, c, s * 0.28));
+  let leaf = max(max(max(l0, l1), max(l2, l3)), max(l4, hub));
+  let cov = max(cov, leaf);
+  let tone = select(tone, rand(i * 5.0 + 11.0), leaf);
+}
+let grain = noise.fbm(uv * 40.0, octaves: 2, seed: 3);
+out.color = mix(color("#2f6a1c"), color("#a9db52"), sat(0.15 + 0.75 * tone + 0.1 * grain));
+out.alpha = cov;
+out.orm = orm(occlusion: 1.0, roughness: 0.8, metallic: 0.0);
+#end
+
+#tree BigOak
+  seed: 5
+  mode: colonize
+  leader: 30
+  levels: 4
+  children: 6
+  segments: 7
+  trunk_height: 230
+  trunk_radius: 48
+  points: 900
+  length_pct: 80
+  radius_pct: 52
+  angle_deg: 55
+  angle_jitter_deg: 25
+  up_bias_pct: 18
+  curve_jitter_pct: 26
+  trunk_noise_pct: 7
+  trunk_lean_deg: 6
+  trunk_sweep_pct: 25
+  trunk_gnarl_pct: 60
+  root_flare_pct: 60
+  leaves: 12
+  leaf_size: 120
+  droop_pct: 10
+  leaf: LeafClump
+  bark: BarkWarm
+  trunk_point: 40, -30, 120
+  trunk_point: 100, -80, 230
+  crown_follow_pct: 100
+  crown_ellipsoid: 270, -170, 420, 300, 360, 200
+  crown_ellipsoid: 250, -580, 400, 240, 240, 170
+  crown_ellipsoid: 130, 80, 420, 200, 200, 170
+  crown_ellipsoid: 300, -220, 610, 260, 300, 150
+#end
+
+#tree RoundTree
+  seed: 12
+  mode: colonize
+  leader: 40
+  levels: 4
+  children: 6
+  segments: 6
+  trunk_height: 300
+  trunk_radius: 26
+  points: 700
+  length_pct: 76
+  radius_pct: 50
+  angle_deg: 50
+  up_bias_pct: 22
+  curve_jitter_pct: 20
+  trunk_lean_deg: 4
+  root_flare_pct: 40
+  leaves: 12
+  leaf_size: 110
+  leaf: LeafClump
+  bark: BarkWarm
+  crown_ellipsoid: 0, 0, 520, 320, 300, 240
+  crown_ellipsoid: 120, -90, 640, 240, 220, 180
+#end
+
+#tree Bush
+  seed: 3
+  mode: colonize
+  levels: 3
+  children: 6
+  trunk_height: 10
+  trunk_radius: 4
+  points: 260
+  leader: 0
+  leaves: 14
+  leaf_size: 30
+  leaf: LeafClump
+  crown_ellipsoid: 0, 0, 32, 38, 38, 28
+#end
+
+#tree SmallTree
+  seed: 21
+  mode: colonize
+  leader: 40
+  levels: 4
+  children: 6
+  segments: 6
+  trunk_height: 170
+  trunk_radius: 16
+  points: 500
+  length_pct: 76
+  radius_pct: 50
+  angle_deg: 50
+  up_bias_pct: 22
+  curve_jitter_pct: 20
+  root_flare_pct: 35
+  leaves: 12
+  leaf_size: 80
+  leaf: LeafClump
+  bark: BarkWarm
+  crown_ellipsoid: 0, 0, 300, 170, 160, 150
+#end
+
+// ---------- props ----------
+#mesh Bench
+let seat = merge(
+    box_at(size: (16, 170, 5), bottom_center: (-14, 0, 42), bevel: 1.5, material: "WoodWarm"),
+    box_at(size: (16, 170, 5), bottom_center: (4, 0, 42), bevel: 1.5, material: "WoodWarm"),
+    box_at(size: (14, 170, 5), bottom_center: (21, 0, 42), bevel: 1.5, material: "WoodWarm")
+);
+let back = merge(
+    box_at(size: (5, 170, 13), bottom_center: (30, 0, 58), bevel: 1.5, material: "WoodWarm"),
+    box_at(size: (5, 170, 13), bottom_center: (32, 0, 75), bevel: 1.5, material: "WoodWarm")
+);
+let legL = merge(
+    box_at(size: (8, 8, 42), bottom_center: (-16, -70, 0), bevel: 1, material: "WoodShade"),
+    box_at(size: (8, 8, 90), bottom_center: (30, -70, 0), bevel: 1, material: "WoodShade"),
+    box_at(size: (52, 7, 6), bottom_center: (7, -70, 36), bevel: 1, material: "WoodShade")
+);
+let legR = translate(legL, (0, 140, 0));
+out.geo = merge(seat, back, legL, legR);
+#end
+
+#mesh Crate
+let core = box_at(size: (56, 56, 56), bottom_center: (0, 0, 2), bevel: 1, material: "WoodWarm");
+let posts = grid_array(box_at(size: (8, 8, 60), bottom_center: (-26, -26, 0), bevel: 1, material: "WoodShade"), count: (2, 2, 1), offset: (52, 52, 0));
+let railsX = grid_array(box_at(size: (60, 8, 8), bottom_center: (0, -26, 0), bevel: 1, material: "WoodShade"), count: (1, 2, 2), offset: (0, 52, 52));
+let railsY = grid_array(box_at(size: (8, 60, 8), bottom_center: (-26, 0, 0), bevel: 1, material: "WoodShade"), count: (2, 1, 2), offset: (52, 0, 52));
+out.geo = merge(core, posts, railsX, railsY);
+#end
+
+#mesh FenceBroken
+let p1 = box_at(size: (10, 10, 80), bottom_center: (0, -65, 0), bevel: 1.5, material: "WoodShade");
+let p2 = rotate_x(box_at(size: (10, 10, 70), bottom_center: (0, 65, 0), bevel: 1.5, material: "WoodShade"), 12, pivot: (0, 65, 0));
+let r1 = box_at(size: (5, 150, 12), bottom_center: (-4, 0, 55), bevel: 1.5, material: "WoodWarm");
+let r2 = rotate_x(box_at(size: (5, 150, 12), bottom_center: (-6, 0, 22), bevel: 1.5, material: "WoodWarm"), -8, pivot: (0, 0, 28));
+out.geo = merge(p1, p2, r1, r2);
+#end
+
+#mesh SignPost
+let post = box_at(size: (12, 12, 105), bottom_center: (0, 0, 0), bevel: 2, material: "WoodWarm");
+let cap = box_at(size: (16, 16, 6), bottom_center: (0, 0, 105), bevel: 2, material: "WoodShade");
+let plank = box_at(size: (4, 28, 18), bottom_center: (-8, 0, 70), bevel: 1, material: "WoodShade");
+out.geo = merge(post, cap, plank);
+#end
+
+#mesh FlatStone
+out.geo = rock_slab(size: (42, 30, 7), roughness: 0.3, seed: 4, detail: 1, material: "StoneLight");
+#end
+
+#mesh RockSmall
+out.geo = rock(size: (45, 38, 26), roughness: 0.4, facets: 12, seed: 3, material: "MossStone");
+#end
+
+#mesh Gazebo
+let base = box_at(size: (190, 190, 30), bottom_center: (0, 0, 0), bevel: 4, material: "StoneLight");
+let posts = grid_array(box_at(size: (13, 13, 170), bottom_center: (-75, -75, 30), bevel: 2, material: "WoodWarm"), count: (2, 2, 1), offset: (150, 150, 0));
+let beamsX = array(box_at(size: (172, 12, 12), bottom_center: (0, -75, 196), bevel: 2, material: "WoodShade"), count: 2, offset: (0, 150, 0));
+let beamsY = array(box_at(size: (12, 172, 12), bottom_center: (-75, 0, 196), bevel: 2, material: "WoodShade"), count: 2, offset: (150, 0, 0));
+let roof = rotate_z(cylinder_at(r_bot: 140, r_top: 6, height: 140, segments: 4, bottom_center: (0, 0, 210), material: "RoofOrange"), 45, pivot: (0, 0, 0));
+let eave = rotate_z(cylinder_at(r_bot: 145, r_top: 140, height: 8, segments: 4, bottom_center: (0, 0, 204), material: "WoodShade"), 45, pivot: (0, 0, 0));
+let finial = sphere_center(radius: 9, center: (0, 0, 353), material: "WoodShade");
+let wellRing = cylinder_at(radius: 42, height: 60, segments: 16, bottom_center: (0, 0, 30), material: "StoneLight");
+let water = cylinder_at(radius: 35, height: 2, segments: 16, bottom_center: (0, 0, 88), material: "WaterDark");
+out.geo = merge(base, posts, beamsX, beamsY, roof, eave, finial, wellRing, water);
+#end
+
+#mesh MarketCart
+let body = box_at(size: (150, 110, 60), bottom_center: (0, 0, 50), bevel: 3, material: "WoodWarm");
+let trim = box_at(size: (156, 116, 8), bottom_center: (0, 0, 106), bevel: 2, material: "WoodShade");
+let rim = rotate_x(torus(major_radius: 40, tube_radius: 6, segments: 20, tube_segments: 8, material: "WoodShade"), 90);
+let spoke = cylinder_between(start: (0, 0, -37), end: (0, 0, 37), radius: 2.5, segments: 6, material: "WoodShade");
+let spokes = merge(spoke, rotate_y(spoke, 45), rotate_y(spoke, 90), rotate_y(spoke, 135));
+let hub = rotate_x(cylinder_center(radius: 8, height: 14, segments: 10, center: (0, 0, 0), material: "IronDark"), 90);
+let wheel = merge(rim, spokes, hub);
+let wheels = merge(translate(wheel, (20, -64, 46)), translate(wheel, (20, 64, 46)));
+let postBack = box_at(size: (6, 6, 110), bottom_center: (70, -52, 110), material: "WoodShade");
+let postFront = box_at(size: (6, 6, 80), bottom_center: (-70, -52, 110), material: "WoodShade");
+let posts = merge(postBack, translate(postBack, (0, 104, 0)), postFront, translate(postFront, (0, 104, 0)));
+let s0 = rotate_y(box_center(size: (190, 20, 3), center: (0, -60, 0), material: "FabricBlue"), -10);
+let s1 = rotate_y(box_center(size: (190, 20, 3), center: (0, -40, 0), material: "FabricWhite"), -10);
+let s2 = rotate_y(box_center(size: (190, 20, 3), center: (0, -20, 0), material: "FabricBlue"), -10);
+let s3 = rotate_y(box_center(size: (190, 20, 3), center: (0, 0, 0), material: "FabricWhite"), -10);
+let s4 = rotate_y(box_center(size: (190, 20, 3), center: (0, 20, 0), material: "FabricBlue"), -10);
+let s5 = rotate_y(box_center(size: (190, 20, 3), center: (0, 40, 0), material: "FabricWhite"), -10);
+let s6 = rotate_y(box_center(size: (190, 20, 3), center: (0, 60, 0), material: "FabricBlue"), -10);
+let awning = translate(merge(s0, s1, s2, s3, s4, s5, s6), (0, 0, 205));
+let flapB = box_center(size: (3, 20, 22), center: (-94, -60, 178), material: "FabricBlue");
+let flapW = box_center(size: (3, 20, 22), center: (-94, -40, 178), material: "FabricWhite");
+let flaps = merge(array(flapB, count: 4, offset: (0, 40, 0)), array(flapW, count: 3, offset: (0, 40, 0)));
+let goods = merge(
+    box_at(size: (40, 34, 26), bottom_center: (30, -20, 114), bevel: 2, material: "WoodWarm"),
+    sphere_center(radius: 16, center: (-30, 22, 126), material: "FabricWhite"),
+    sphere_center(radius: 14, center: (-10, -28, 124), material: "RoofOrange")
+);
+let shafts = merge(
+    cylinder_between(start: (-75, -40, 70), end: (-200, -55, 4), radius: 4, segments: 8, material: "WoodShade"),
+    cylinder_between(start: (-75, 40, 70), end: (-200, 55, 4), radius: 4, segments: 8, material: "WoodShade")
+);
+out.geo = merge(body, trim, wheels, posts, awning, flaps, goods, shafts);
+#end
+
+#mesh House
+let plinth = box_bounds(min: (-410, -460, 0), max: (410, 460, 40), bevel: 3, material: "StoneDark");
+let stone = box_bounds(min: (-405, -455, 0), max: (405, 455, 130), bevel: 4, material: "StoneLight");
+let upper = box_bounds(min: (-400, -450, 130), max: (400, 450, 640), bevel: 2, material: "PlasterCream");
+let fposts = array(box_at(size: (10, 16, 510), bottom_center: (-404, -442, 130), bevel: 1.5, material: "WoodShade"), count: 7, offset: (0, 147, 0));
+let fbeams = merge(
+    box_at(size: (12, 910, 16), bottom_center: (-405, 0, 126), bevel: 1.5, material: "WoodShade"),
+    box_at(size: (10, 910, 12), bottom_center: (-404, 0, 380), bevel: 1.5, material: "WoodShade"),
+    box_at(size: (12, 910, 16), bottom_center: (-405, 0, 628), bevel: 1.5, material: "WoodShade")
+);
+let sposts = array(box_at(size: (16, 10, 510), bottom_center: (-392, -454, 130), bevel: 1.5, material: "WoodShade"), count: 6, offset: (157, 0, 0));
+let sbeams = merge(
+    box_at(size: (810, 12, 16), bottom_center: (0, -455, 126), bevel: 1.5, material: "WoodShade"),
+    box_at(size: (810, 10, 12), bottom_center: (0, -454, 380), bevel: 1.5, material: "WoodShade"),
+    box_at(size: (810, 12, 16), bottom_center: (0, -455, 628), bevel: 1.5, material: "WoodShade")
+);
+let braces = merge(
+    beam_between(start: (-405, -440, 400), end: (-405, -300, 620), cross_width: 10, cross_height: 8, material: "WoodShade"),
+    beam_between(start: (-405, 300, 400), end: (-405, 440, 620), cross_width: 10, cross_height: 8, material: "WoodShade"),
+    beam_between(start: (-390, -456, 400), end: (-240, -456, 620), cross_width: 10, cross_height: 8, material: "WoodShade"),
+    beam_between(start: (240, -456, 400), end: (390, -456, 620), cross_width: 10, cross_height: 8, material: "WoodShade")
+);
+let doorFrame = box_at(size: (14, 150, 250), bottom_center: (-404, -290, 0), bevel: 2, material: "WoodShade");
+let door = box_at(size: (10, 118, 232), bottom_center: (-408, -290, 0), bevel: 1, material: "DoorWood");
+let lintel = box_at(size: (20, 170, 20), bottom_center: (-406, -290, 250), bevel: 3, material: "WoodShade");
+let winF = merge(
+    box_at(size: (10, 90, 110), bottom_center: (-404, 0, 0), bevel: 1, material: "WoodShade"),
+    box_at(size: (6, 72, 92), bottom_center: (-408, 0, 9), material: "GlassBlue"),
+    box_at(size: (8, 90, 5), bottom_center: (-408, 0, 52), material: "WoodShade")
+);
+let windowsF = merge(translate(winF, (0, -120, 450)), translate(winF, (0, 160, 450)), translate(winF, (0, 120, 160)));
+let winS = merge(
+    box_at(size: (90, 10, 110), bottom_center: (0, -454, 0), bevel: 1, material: "WoodShade"),
+    box_at(size: (72, 6, 92), bottom_center: (0, -458, 9), material: "GlassBlue"),
+    box_at(size: (5, 8, 110), bottom_center: (0, -458, 0), material: "WoodShade")
+);
+let windowsS = merge(translate(winS, (-160, 0, 450)), translate(winS, (160, 0, 450)), translate(winS, (0, 0, 160)));
+let quoins = array(box_at(size: (30, 30, 42), bottom_center: (-400, -450, 40), bevel: 4, material: "StoneDark"), count: 2, offset: (0, 0, 46));
+let roof = gable_roof(size: (880, 980, 22), bottom_center: (0, 0, 640), roof_height: 320, overhang: 30, ridge_axis: "x", material: "RoofSlate");
+let chimney = box_at(size: (60, 60, 220), bottom_center: (150, 250, 800), bevel: 3, material: "StoneDark");
+out.geo = merge(plinth, stone, upper, fposts, fbeams, sposts, sbeams, braces, doorFrame, door, lintel, windowsF, windowsS, quoins, roof, chimney);
+#end
+
+#mesh FlowerWhite
+let stem = cylinder_between(start: (0, 0, 0), end: (0, 0, 34), radius: 0.6, segments: 5, material: "StemGreen");
+let petal = scale(sphere_center(radius: 3, segments: 6, center: (3.5, 0, 34), material: "PetalWhite"), (1, 0.6, 0.35), pivot: (3.5, 0, 34));
+let petals = merge(petal, rotate_z(petal, 72), rotate_z(petal, 144), rotate_z(petal, 216), rotate_z(petal, 288));
+let heart = sphere_center(radius: 1.8, segments: 6, center: (0, 0, 35), material: "PetalYellow");
+out.geo = merge(stem, petals, heart);
+#end
+
+#mesh FlowerYellow
+let stem = cylinder_between(start: (0, 0, 0), end: (0, 0, 30), radius: 0.6, segments: 5, material: "StemGreen");
+let petal = scale(sphere_center(radius: 2.6, segments: 6, center: (3, 0, 30), material: "PetalYellow"), (1, 0.6, 0.35), pivot: (3, 0, 30));
+let petals = merge(petal, rotate_z(petal, 72), rotate_z(petal, 144), rotate_z(petal, 216), rotate_z(petal, 288));
+let heart = sphere_center(radius: 1.5, segments: 6, center: (0, 0, 31), material: "PetalHeart");
+out.geo = merge(stem, petals, heart);
+#end
+
+#scatter WhiteFlowers
+  model: "mesh.FlowerWhite"
+  spacing: 110
+  density_pct: 45
+  scale_min_pct: 70
+  scale_max_pct: 130
+  seed: 4
+  terrain_normal_align_pct: 0
+#end
+
+#scatter YellowFlowers
+  model: "mesh.FlowerYellow"
+  spacing: 140
+  density_pct: 35
+  scale_min_pct: 70
+  scale_max_pct: 120
+  seed: 9
+  terrain_normal_align_pct: 0
+#end
+
+// ---------- layout (world cm; reference pixels back-projected through the fixed camera) ----------
+object BigTree { model = "tree.BigOak" position = (1000, -600, 0) }
+object LeftTree { model = "tree.SmallTree" position = (960, 1020, 0) rotation = (0, 0, 40) }
+display Hedge1 { model = "tree.Bush" position = (2050, 680, 0) rotation = (0, 0, 120) height = 2300 }
+display Hedge2 { model = "tree.Bush" position = (1960, 440, 0) rotation = (0, 0, 220) height = 2500 }
+display Hedge3 { model = "tree.Bush" position = (2120, 240, 0) rotation = (0, 0, 20) height = 2100 }
+object BackTree3 { model = "tree.RoundTree" position = (2380, 120, 0) rotation = (0, 0, 300) }
+
+object House { model = "mesh.House" position = (1910, 1440, 0) }
+object Gazebo { model = "mesh.Gazebo" position = (1100, 820, 0) rotation = (0, 0, 8) }
+object Cart { model = "mesh.MarketCart" position = (792, 771, 0) rotation = (0, 0, -10) height = 165 }
+object Bench1 { model = "mesh.Bench" position = (1864, 178, 0) rotation = (0, 0, 24) }
+object Bench2 { model = "mesh.Bench" position = (2051, -22, 0) rotation = (0, 0, 20) }
+object Crate1 { model = "mesh.Crate" position = (1070, -470, 0) rotation = (0, 0, 8) }
+object Crate2 { model = "mesh.Crate" position = (1100, -540, 0) rotation = (0, 0, -12) }
+object Crate3 { model = "mesh.Crate" position = (1642, 965, 0) }
+object Crate4 { model = "mesh.Crate" position = (1735, 950, 0) rotation = (0, 0, 15) }
+object Post { model = "mesh.SignPost" position = (978, -416, 0) rotation = (0, 0, -15) }
+object Fence { model = "mesh.FenceBroken" position = (854, -689, 0) rotation = (0, 0, 48) }
+
+display Bush1 { model = "tree.Bush" position = (919, -570, 0) }
+display Bush2 { model = "tree.Bush" position = (968, -684, 0) rotation = (0, 0, 70) }
+display Bush3 { model = "tree.Bush" position = (422, 265, 0) rotation = (0, 0, 140) }
+display Bush4 { model = "tree.Bush" position = (488, -75, 0) rotation = (0, 0, 200) }
+display Bush5 { model = "tree.Bush" position = (433, -195, 0) rotation = (0, 0, 260) }
+display Bush6 { model = "tree.Bush" position = (668, 806, 0) rotation = (0, 0, 30) }
+
+display Stone1 { model = "mesh.FlatStone" position = (1331, 780, 0) rotation = (0, 0, 20) }
+display Stone2 { model = "mesh.FlatStone" position = (1406, 727, 0) rotation = (0, 0, 75) }
+display Stone3 { model = "mesh.FlatStone" position = (1418, 672, 0) rotation = (0, 0, 130) }
+display Stone4 { model = "mesh.FlatStone" position = (1397, 623, 0) rotation = (0, 0, 10) }
+display Stone5 { model = "mesh.FlatStone" position = (1453, 607, 0) rotation = (0, 0, 95) }
+display Stone6 { model = "mesh.FlatStone" position = (1469, 719, 0) rotation = (0, 0, 160) }
+display RockA { model = "mesh.RockSmall" position = (948, -452, 0) rotation = (0, 0, 30) }
+display RockB { model = "mesh.RockSmall" position = (427, 56, 0) rotation = (0, 0, 110) }
+display RockC { model = "mesh.RockSmall" position = (612, 731, 0) rotation = (0, 0, 200) }
+
+object FlowerField1 { model = "scatter.WhiteFlowers" position = (1300, 0, -100) size = (2400, 3600, 400) }
+object FlowerField2 { model = "scatter.YellowFlowers" position = (1300, 0, -100) size = (2400, 3600, 400) }
